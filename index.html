@@ -757,12 +757,19 @@
         // --- RESEAU ---
         function connect() {
             unlockAudioContext();
-            const host = location.hostname || 'localhost';
-            ws = new WebSocket('ws://' + host + ':5555');
-            ws.onopen = () => ws.send(JSON.stringify({type: 'LOGIN', name: document.getElementById('username').value}));
+            const user = document.getElementById('username').value;
+            
+            // REMPLACE L'ADRESSE CI-DESSOUS PAR CELLE DE RENDER
+            // Exemple : const address = 'wss://mon-poker-serveur.onrender.com';
+            const address = 'wss://poker-menteur-online.onrender.com'; 
+        
+            console.log("Connexion à " + address);
+            ws = new WebSocket(address);
+            
+            ws.onopen = () => ws.send(JSON.stringify({type: 'LOGIN', name: user}));
             ws.onmessage = e => handle(JSON.parse(e.data));
-            ws.onerror = () => alert("Impossible de se connecter au serveur WS");
-        }
+            ws.onerror = () => alert("Le serveur démarre... Réessaie dans 30 secondes !");
+}
         function send(d) { if(ws) ws.send(JSON.stringify(d)); }
 
         function handle(msg) {
@@ -1235,4 +1242,5 @@
         function closeModal() { document.getElementById('modal-result').style.display='none'; }
     </script>
 </body>
+
 </html>
