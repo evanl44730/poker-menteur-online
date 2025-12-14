@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Poker Menteur - Mobile Ready</title>
+    <style>
+        :root { --bg: #1e1e24; --felt: #27ae60; --gold: #f1c40f; --panel: #2d3436; --red: #e74c3c; }
+        body { 
+            margin: 0; 
+            font-family: 'Segoe UI', sans-serif; 
+            background: var(--bg); 
+            color: white; 
+            overflow: hidden; 
+            width: 100%;
+            height: 100vh; 
+            height: 100dvh; /* Pour mobile (safari/chrome barres d'adresse) */
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        /* ECRANS */
+        .screen { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+        .screen.active { display: flex; }
+        
+        /* LOGIN */
+        .login-box { background: var(--panel); padding: 30px; border-radius: 12px; text-align: center; width: 90%; max-width: 400px; }
+        input, select { padding: 12px; border-radius: 6px; border: 1px solid #444; background: #222; color: white; margin: 8px 0; width: 100%; box-sizing: border-box; font-size: 1rem; }
+        button { background: var(--gold); color: #222; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; width: 100%; font-size: 1rem; }
+        button:disabled { opacity: 0.5; }
+
+        /* TABLE (RESPONSIVE) */
+        #game-view { 
+            position: relative; 
+            width: 100%; 
+            flex: 1; /* C'est la clé : il grandit pour remplir le vide */
+            background: radial-gradient(circle, var(--felt) 20%, #1e8449 90%); 
+            overflow: hidden; 
+        }
+        
+        .center-area { 
+            position: absolute; 
+            top: 58%; /* Descendu de 45% à 58% pour dégager le joueur du haut */
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            text-align: center; 
+            width: 90%; 
+            pointer-events: none; 
+            z-index: 5; /* S'assure que c'est au dessus du tapis mais sous les anims */
+        }
+        .claim-text { font-size: clamp(1.2rem, 4vw, 2rem); color: var(--gold); font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); margin-bottom: 10px; }
+        
+        /* CARTES SUR TABLE (FOND BLANC) */
+        .visual-claim-cards { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; }
+        .visual-claim-cards img { 
+            width: clamp(40px, 10vw, 70px); 
+            height: auto; 
+            background: white; /* FOND BLANC FORCÉ */
+            border-radius: 4px; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5); 
+        }
+        .separator { font-size: 2rem; margin: 0 10px; color: white; }
+
+        /* JOUEURS */
+        .player { position: absolute; width: 80px; text-align: center; transition: all 0.5s ease; }
+        .avatar { width: 50px; height: 50px; background: #333; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-weight:bold; border: 3px solid #555; position: relative; z-index: 2; }
+        .player.active .avatar { border-color: var(--gold); box-shadow: 0 0 15px var(--gold); }
+        .info-tag { background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-top: 2px; display: inline-block; white-space: nowrap; }
+
+        /* PANNEAU BAS (RESPONSIVE) */
+        .bottom-panel { 
+            background: var(--panel); 
+            border-top: 4px solid #111; 
+            z-index: 10; 
+            width: 100%; 
+            display: flex; 
+            flex-direction: row; 
+            
+            /* Changement ici : Hauteur automatique mais limitée */
+            height: auto; 
+            max-height: 40vh; /* Ne jamais dépasser 40% de l'écran */
+            flex-shrink: 0; /* Empêche le panneau d'être écrasé */
+            padding-bottom: env(safe-area-inset-bottom); /* Pour iPhone X+ */
+        }
+        
+        .my-hand-area { width: 35%; border-right: 2px solid #444; padding: 10px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
+        .hand-cards { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 10px; }
+        .hand-cards img { 
+            width: clamp(50px, 8vw, 80px); 
+            height: auto; 
+            border-radius: 4px; 
+            background: white; /* FOND BLANC */
+            cursor: pointer; 
+        }
+        .hidden-hand img { transform: rotateY(180deg); } /* Dos */
+
+        /* Optimisation pour les petits écrans dans le panneau */
+        .controls-area {
+            flex-grow: 1;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            width: 100%; /* S'assure de prendre toute la largeur */
+            box-sizing: border-box; /* Inclut le padding dans le calcul de largeur */
+        }
+        .input-group {
+            background: rgba(0,0,0,0.2);
+            padding: 8px;
+            border-radius: 6px;
+            
+            /* LA CLÉ DU SUCCÈS : */
+            flex: 1 1 0px; /* Force les deux blocs à avoir une largeur de base de 0 et à grandir équitablement */
+            display: flex;
+            flex-direction: column;
+            min-width: 0; /* Empêche le contenu de déformer le flex */
+        }
+        .input-title {
+            font-size: 0.8rem; 
+            color: #aaa; 
+            font-weight: bold;
+        }
+
+        .split-label {
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            color: white;
+            width: 100%; /* Zone cliquable large */
+        }
+
+        /* --- ALIGNEMENT DES TITRES --- */
+        /* On donne une hauteur fixe aux entêtes pour qu'ils s'alignent parfaitement */
+        .input-title, .split-header {
+            height: 25px;
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .split-header label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            color: white; /* Le rendre plus visible comme un titre actif */
+        }
+        
+        .row-selects {
+            display: flex;
+            gap: 5px;
+            width: 100%;
+        }
+        
+        .row-selects select {
+            flex: 1; /* Chaque select prend sa part */
+            width: 100%; /* Force la largeur max */
+            min-width: 0;
+            padding: 8px; /* Confort tactile */
+        }
+
+        .action-buttons {
+            display: flex; 
+            gap: 10px; 
+            margin-top: auto; 
+            width: 100%;
+        }
+        .action-buttons button { flex: 1; }
+        .btn-call { background: var(--red); color: white; }
+
+        /* MEDIA QUERY MOBILE (Portrait) */
+        /* MEDIA QUERY MOBILE (Portrait) */
+        @media (max-width: 768px) {
+            .bottom-panel { 
+                flex-direction: column; 
+                height: auto; 
+                max-height: 50vh; 
+            }
+            .center-area {
+                top: 55%; /* Un peu plus haut sur mobile car le clavier peut gêner */
+            }
+            /* Réduire un peu la taille des cartes centrales sur mobile */
+            .visual-claim-cards img { width: clamp(30px, 12vw, 60px); }
+            .claim-text { font-size: 1.2rem; margin-bottom: 5px; }
+        }
+
+        /* MODAL */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 100; flex-direction: column; }
+        .reveal-grid { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; padding: 20px; }
+        .reveal-grid img { width: 60px; background: white; border-radius: 4px; }
+
+        /* --- ANIMATIONS --- */
+
+        /* 1. Entrée des cartes (Distribution) */
+        @keyframes slideInUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .hand-cards img {
+            /* On prépare l'anim, le délai sera géré en JS */
+            animation: slideInUp 0.5s cubic-bezier(0.25, 1.5, 0.5, 1) both; 
+        }
+
+        /* 2. Pulsation du Joueur Actif */
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(241, 196, 15, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); }
+        }
+        
+        .player.active .avatar {
+            animation: pulse-ring 2s infinite;
+        }
+
+        /* 3. Apparition fluide des claims centraux */
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .visual-claim-cards img, .separator {
+            animation: popIn 0.4s ease-out both;
+        }
+
+        /* 4. Transition fluide du panneau Split */
+        #split-inputs {
+            transition: all 0.3s ease-in-out;
+            overflow: hidden;
+            max-height: 0; /* Caché par défaut */
+            opacity: 0;
+            margin-top: 0;
+        }
+        
+        #split-inputs.visible {
+            max-height: 100px; /* Assez grand pour le contenu */
+            opacity: 1;
+            margin-top: 5px;
+        }
+
+        /* 5. Feedback flottant (Texte d'action) */
+        .feedback-bubble {
+            position: absolute;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+            background: rgba(0,0,0,0.8);
+            padding: 5px 10px;
+            border-radius: 8px;
+            pointer-events: none;
+            animation: floatUp 1.5s forwards;
+            z-index: 20;
+            white-space: nowrap;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+            20% { transform: translate(-50%, -20px) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -60px) scale(1); opacity: 0; }
+        }
+
+        /* --- CARTES ADVERSAIRES (DOS) --- */
+        .opponent-hand {
+            display: flex;
+            justify-content: center;
+            margin-top: 5px;
+            height: 45px; /* Hauteur fixe pour éviter que ça saute */
+        }
+
+        .mini-card {
+            width: 30px; /* Beaucoup plus petit que les cartes du milieu */
+            height: 45px;
+            background: white;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            margin-left: -15px; /* Effet d'éventail (superposition) */
+            transition: transform 0.2s;
+        }
+
+        /* La première carte ne doit pas être décalée */
+        .mini-card:first-child {
+            margin-left: 0;
+        }
+        
+        /* Petit effet au survol pour voir combien il y en a */
+        .opponent-hand:hover .mini-card {
+            margin-left: -5px; /* On écarte un peu les cartes au survol */
+        }
+
+        /* --- 1. LOGS --- */
+        .log-panel {
+            position: absolute; top: 10px; right: 10px; width: 200px; max-height: 150px;
+            overflow-y: auto; background: rgba(0,0,0,0.5); font-size: 0.8rem;
+            padding: 5px; border-radius: 4px; pointer-events: none; z-index: 50;
+        }
+        .log-item { margin-bottom: 2px; text-shadow: 1px 1px 0 #000; }
+        .log-highlight { color: var(--gold); font-weight: bold; }
+
+        /* --- 2. SHAKE EFFECT --- */
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        .shake-screen { animation: shake 0.5s; }
+
+        /* --- 3. EMOJIS --- */
+        /* --- BARRE D'EMOJIS --- */
+        .emoji-bar {
+            position: absolute; 
+            bottom: 30vh; /* Ajustez la hauteur si besoin */
+            right: 10px; 
+            z-index: 60;
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px;
+        }
+
+        /* LE BOUTON ROND (CONTENEUR) */
+        .emoji-btn {
+            width: 50px;  /* Taille fixe du cercle */
+            height: 50px;
+            border-radius: 50%; /* Rend le bouton rond */
+            
+            background: rgba(0,0,0,0.3); /* Fond sombre semi-transparent */
+            border: 2px solid rgba(255,255,255,0.2); /* Bordure subtile */
+            
+            /* CENTRAGE PARFAIT & ROGNAGE */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* C'est ICI la magie : ça coupe tout ce qui dépasse du rond */
+            padding: 0;
+            
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .emoji-btn:hover { 
+            transform: scale(1.15); 
+            border-color: var(--gold); /* Bordure dorée au survol */
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* L'IMAGE À L'INTÉRIEUR */
+        .emoji-btn img {
+            width: 100%;
+            height: 100%;
+            /* 'cover' va zoomer pour remplir tout le cercle (idéal pour des visages/photos carrées) */
+            /* Si vous préférez voir l'image en entier avec des bords vides, mettez 'contain' */
+            object-fit: cover; 
+            pointer-events: none;
+            display: block;
+        }
+        
+        .floating-emoji {
+            position: absolute;
+            /* Plus de font-size ici car ce n'est plus du texte */
+            width: 60px;  /* Taille de l'image flottante */
+            height: 60px;
+            animation: floatEmoji 2s forwards;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        @keyframes floatEmoji {
+            0% { transform: translate(-50%, 0) scale(0); opacity: 0; }
+            20% { transform: translate(-50%, -20px) scale(1.2); opacity: 1; }
+            80% { transform: translate(-50%, -50px) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -80px) scale(0.5); opacity: 0; }
+        }
+
+        .header-row {
+            height: 25px; /* Hauteur fixe pour alignement parfait */
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        /* Conteneur pour mettre les mains côte à côte */
+        .hands-row {
+            display: flex;
+            flex-direction: row;
+            gap: 10px; /* Espace entre les deux blocs */
+            width: 100%;
+        }
+        /* Sur mobile, on garde côte à côte mais on réduit la taille si besoin */
+        .hands-row .input-group {
+            flex: 1; 
+            min-width: 0; /* Empêche le débordement flex */
+            display: flex;
+            flex-direction: column;
+            margin: 0; /* Important pour l'alignement */
+            height: 100%; /* Pour qu'ils aient la même hauteur visuelle */
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="screen-login" class="screen active">
+        <div class="login-box">
+            <h1>POKER MENTEUR</h1>
+            <input type="text" id="username" placeholder="Votre Pseudo" value="Joueur">
+            <button onclick="connect()">JOUER</button>
+        </div>
+    </div>
+
+    <div id="screen-lobby" class="screen">
+        <div class="login-box">
+            <h2>SALON</h2>
+            <p id="lobby-msg">...</p>
+            <button id="btn-start" disabled onclick="send({type: 'START_GAME'})">LANCER</button>
+        </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <button id="btn-music" onclick="toggleMusic()" 
+            style="position:absolute; top:10px; left:10px; z-index:100; background:rgba(0,0,0,0.5); width:40px; height:40px; padding:0; font-size:1.2rem; border-radius:50%;">
+        🔊
+    </button>
+        <div id="game-view">
+            <div id="players-container"></div>
+            <div class="center-area">
+                <div id="claim-text" class="claim-text">...</div>
+                <div id="visual-claim" class="visual-claim-cards"></div>
+            </div>
+        </div>
+
+        <div id="game-logs" class="log-panel"></div>
+            <div class="emoji-bar">
+        <button class="emoji-btn" onclick="sendEmote('gelo')">
+            <img src="assets/emotes/gelo.png" alt="gelo">
+        </button>
+        
+        <button class="emoji-btn" onclick="sendEmote('max')">
+            <img src="assets/emotes/max.png" alt="max">
+        </button>
+        
+        <button class="emoji-btn" onclick="sendEmote('ciliem')">
+            <img src="assets/emotes/ciliem.png" alt="ciliem">
+        </button>
+        
+        <button class="emoji-btn" onclick="sendEmote('matou')">
+            <img src="assets/emotes/matou.png" alt="matou">
+        </button>
+        
+        <button class="emoji-btn" onclick="sendEmote('germinal')">
+            <img src="assets/emotes/germinal.png" alt="germinal">
+        </button>
+    </div>
+
+        <div class="bottom-panel">
+            <div class="my-hand-area">
+                <button style="padding:5px; margin:0; width:auto; font-size:0.8rem" onclick="toggleHand()">👁</button>
+                <div id="my-cards" class="hand-cards"></div>
+            </div>
+
+            <div id="controls" class="controls-area" style="opacity: 0.5; pointer-events: none;">
+                
+                <div class="hands-row">
+                    
+                    <div class="input-group">
+                        <div class="header-row">
+                            <div class="input-title">MAIN 1</div>
+                        </div>
+
+                        <div class="row-selects">
+                            <select id="c1-combo" onchange="updateInputs(1)"></select>
+                        </div>
+                        <div class="row-selects" style="margin-top:5px">
+                            <select id="c1-r1" style="display:none"></select>
+                            <select id="c1-r2" style="display:none"></select>
+                            <select id="c1-suit" style="display:none"></select>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <div class="header-row">
+                            <label class="split-label">
+                                <input type="checkbox" id="check-split" onchange="toggleSplit()"> SPLIT (Double)
+                            </label>
+                        </div>
+                        
+                        <div id="split-inputs" style="display:none; width:100%;">
+                            <div class="row-selects">
+                                <select id="c2-combo" onchange="updateInputs(2)"></select>
+                            </div>
+                            <div class="row-selects" style="margin-top:5px">
+                                <select id="c2-r1" style="display:none"></select>
+                                <select id="c2-r2" style="display:none"></select>
+                                <select id="c2-suit" style="display:none"></select>
+                            </div>
+                        </div>
+                    </div>
+
+                </div> <div class="action-buttons">
+                    <button onclick="bid()">ENCHÉRIR</button>
+                    <button class="btn-call" onclick="send({type: 'CALL'})">MENTEUR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-result" class="modal">
+        <h1 id="res-title" style="margin:10px">RESULTAT</h1>
+        <p id="res-desc" style="color:#ccc; margin:5px">Détails</p>
+        <p id="res-stats" style="color:var(--gold); font-style:italic; margin-bottom:10px; font-size:0.9rem"></p>
+        <div id="res-cards" class="reveal-grid"></div>
+        <button onclick="closeModal()" style="width:auto; padding:10px 30px">OK</button>
+    </div>
+
+    <script>
+        const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const COMBOS = ['Carte', 'Paire', 'Double Paire', 'Brelan', 'Couleur', 'Suite', 'Full', 'Carré', 'QuinteFlush', 'QuinteFlushRoyale'];
+        
+        // Mapping assets
+        const SUIT_NAMES = {'♠': 'spades', '♥': 'hearts', '♦': 'diamonds', '♣': 'clubs'};
+        const RANK_NAMES = {'10': '10', 'J': 'jack', 'Q': 'queen', 'K': 'king', 'A': 'ace'};
+
+        // --- AUDIO SYSTEM ---
+        // --- SYSTÈME SONORE (Liens Google Actions Fiables) ---
+        const SOUNDS = {
+            // Un petit "pop" discret pour signaler mon tour
+            turn: new Audio('assets/sounds/turn.mp3'),
+            
+            // Bruit de pièce/jeton sur du bois pour l'enchère
+            bid: new Audio('assets/sounds/bet.mp3'),
+            
+            // Bruit métallique/drama pour le "Menteur"
+            lie_found: new Audio('assets/sounds/liar.mp3'),
+
+            truth_hurt: new Audio('assets/sounds/truth.mp3'),
+            
+            // Bruit de papier/cartes pour le mélange
+            start: new Audio('assets/sounds/cards.mp3'),
+
+            gelo: new Audio('assets/sounds/gelo.mp3'),
+            
+            // 😎 : Un son "Cool" / Magique
+            germinal: new Audio('assets/sounds/germinal.mp3'),
+            
+            // 😡 : Un coup ou un grognement
+            matou: new Audio('assets/sounds/matou.mp3'),
+            
+            // 🍅 : Un bruit d'écrasement (Splat)
+            max: new Audio('assets/sounds/max.mp3'), // (Faute de mieux en lien direct, mettez un bruit de splat localement)
+            
+            // 🤡 : Le klaxon de clown (Honk)
+            ciliem: new Audio('assets/sounds/max.mp3')
+        };
+
+        const BGM = new Audio('assets/sounds/jazz.mp3');
+        const WLCM = new Audio('assets/sounds/welcome.mp3');
+        BGM.loop = true;   // La musique tourne en boucle
+        BGM.volume = 0.2;
+        
+        // Réglage du volume pour éviter de casser les oreilles
+        Object.values(SOUNDS).forEach(s => s.volume = 0.5);
+
+        // Fonction de lecture robuste
+        function playSfx(key) {
+            const original = SOUNDS[key];
+            if (original) {
+                // cloneNode permet de superposer les sons (ex: 2 enchères rapides)
+                const clone = original.cloneNode(true);
+                clone.volume = original.volume; 
+                
+                // On joue et on gère l'erreur silencieusement si le navigateur bloque encore
+                clone.play().catch(e => console.warn("Son bloqué (attente interaction):", key));
+            }
+        }
+
+        // Fonction pour débloquer l'audio au premier clic (Obligatoire sur Chrome/Mobile)
+        function unlockAudioContext() {
+            // 1. Déblocage des SFX (code existant)
+            Object.values(SOUNDS).forEach(sound => {
+                const p = sound.play();
+                if(p !== undefined) {
+                    p.then(_ => { sound.pause(); sound.currentTime = 0; }).catch(e => {});
+                }
+            });
+
+            // 2. Lancement de la MUSIQUE
+            BGM.play().catch(e => console.log("Musique bloquée en attente d'interaction"));
+            WLCM.play().catch(e => console.log("Musique bloquée en attente d'interaction"));
+        }
+
+        function toggleMusic() {
+            const btn = document.getElementById('btn-music');
+            if (BGM.paused) {
+                BGM.play();
+                btn.innerText = "🔊";
+                btn.style.opacity = "1";
+            } else {
+                BGM.pause();
+                btn.innerText = "🔇";
+                btn.style.opacity = "0.5";
+            }
+        }
+
+        function addLog(text, highlight=false) {
+            const div = document.getElementById('game-logs');
+            const p = document.createElement('div');
+            p.className = 'log-item' + (highlight ? ' log-highlight' : '');
+            p.innerText = text;
+            div.prepend(p); // Le plus récent en haut
+    }
+
+        function sendEmote(emoji) {
+            send({type: 'EMOTE', content: emoji});
+        }
+
+        // Remarquez bien le deuxième paramètre : 'emoteName' (et non 'emoji')
+        function showEmote(playerIdx, emoteName) {
+            
+            // --- 1. Calcul de la position (Code inchangé) ---
+            const count = gameState.players.length;
+            const rx = 35, ry = 25;
+            let left, top;
+
+            if (playerIdx === myIdx && count > 1) { 
+                left = 50; top = 80; 
+            } else {
+                const ang = ((playerIdx - myIdx + count) % count) * (2*Math.PI/count) + Math.PI/2;
+                left = 50 + rx * Math.cos(ang);
+                top = 45 + ry * Math.sin(ang);
+            }
+
+            // --- 2. Création de l'image (C'est ici que l'erreur se produisait) ---
+            const img = document.createElement('img');
+            img.className = 'floating-emoji';
+            
+            // Gestion de l'extension (.gif pour cool, .png pour le reste)
+            let ext = '.png';
+            
+            // Ici on utilise bien 'emoteName' qui est défini dans la première ligne de la fonction
+             
+            // Construction du chemin
+            // Méthode sans backticks, impossible de se tromper
+            console.log("Le code cherche l'image ici :", 'assets/emotes/' + emoteName + ext);
+            img.src = 'assets/emotes/' + emoteName + ext;
+            
+            img.style.left = left + '%';
+            img.style.top = top + '%';
+            
+            document.body.appendChild(img);
+            
+            // Suppression après 2 secondes
+            setTimeout(() => img.remove(), 2000);
+        }
+
+        let ws, myIdx, gameState, handHidden = false;
+
+        // INIT SELECTS (Avec option vide pour le "vague")
+        function initSelects(prefix, isSec=false) {
+            const cb = document.getElementById(`${prefix}-combo`);
+            const combos = isSec ? COMBOS.slice(1) : COMBOS;
+            combos.forEach(c => cb.add(new Option(c, c)));
+            
+            const r1 = document.getElementById(`${prefix}-r1`);
+            const r2 = document.getElementById(`${prefix}-r2`);
+            
+            // Ajout de l'option vide "-"
+            [r1, r2].forEach(s => {
+                s.add(new Option("-", "")); 
+                RANKS.forEach(r => s.add(new Option(r, r)));
+            });
+            
+            const su = document.getElementById(`${prefix}-suit`);
+            su.add(new Option("-", ""));
+            SUITS.forEach(s => su.add(new Option(s, s)));
+        }
+        initSelects('c1'); initSelects('c2', true);
+        updateInputs(1); updateInputs(2);
+
+        function updateInputs(n) {
+            const p = `c${n}`;
+            const c = document.getElementById(`${p}-combo`).value;
+            const r1 = document.getElementById(`${p}-r1`);
+            const r2 = document.getElementById(`${p}-r2`);
+            const s = document.getElementById(`${p}-suit`);
+
+            // Gestion de l'affichage des sélecteurs (Rank/Suit)
+            r1.style.display = 'none'; r2.style.display = 'none'; s.style.display = 'none';
+
+            if(['Carte','Paire','Brelan','Carré','Full','Double Paire','Suite'].includes(c)) r1.style.display = 'block';
+            if(['Double Paire','Full'].includes(c)) r2.style.display = 'block';
+            if(['Couleur','QuinteFlush','QuinteFlushRoyale'].includes(c)) s.style.display = 'block';
+
+            // --- NOUVEAU : Désactivation automatique du Split ---
+            // Si on modifie la Main 1 (n=1), on coupe la Main 2
+            if (n === 1) {
+                const splitCheck = document.getElementById('check-split');
+                if (splitCheck.checked) {
+                    splitCheck.checked = false;
+                    toggleSplit(); // Met à jour l'affichage pour cacher la main 2
+                }
+            }
+        }
+
+        function resetGameInputs() {
+            // 1. Remettre la Main 1 sur "Carte" et vider les valeurs
+            document.getElementById('c1-combo').value = 'Carte';
+            document.getElementById('c1-r1').value = '';
+            document.getElementById('c1-r2').value = '';
+            document.getElementById('c1-suit').value = '';
+
+            // 2. Remettre la Main 2 à zéro
+            document.getElementById('c2-combo').value = 'Carte'; // Ou 'Paire' selon votre config par défaut
+            document.getElementById('c2-r1').value = '';
+            document.getElementById('c2-r2').value = '';
+            document.getElementById('c2-suit').value = '';
+
+            // 3. Désactiver le split
+            document.getElementById('check-split').checked = false;
+            toggleSplit(); // Cache la div split
+            
+            // 4. Mettre à jour l'affichage des inputs de la main 1 (pour cacher Suit/R2 si nécessaire)
+            updateInputs(1);
+        }
+
+        function toggleSplit() {
+            const div = document.getElementById('split-inputs');
+            const checked = document.getElementById('check-split').checked;
+            
+            if (checked) {
+                div.style.display = 'block'; // Nécessaire pour que le DOM existe
+                // Petit délai pour permettre la transition CSS
+                setTimeout(() => div.classList.add('visible'), 10);
+            } else {
+                div.classList.remove('visible');
+                // On attend la fin de l'anim CSS avant de mettre display: none
+                setTimeout(() => div.style.display = 'none', 300);
+            }
+        }
+
+        // --- RESEAU ---
+        function connect() {
+            unlockAudioContext();
+            const host = location.hostname || 'localhost';
+            ws = new WebSocket('ws://' + host + ':5555');
+            ws.onopen = () => ws.send(JSON.stringify({type: 'LOGIN', name: document.getElementById('username').value}));
+            ws.onmessage = e => handle(JSON.parse(e.data));
+            ws.onerror = () => alert("Impossible de se connecter au serveur WS");
+        }
+        function send(d) { if(ws) ws.send(JSON.stringify(d)); }
+
+        function handle(msg) {
+        if(msg.type === 'LOBBY_UPDATE') {
+            document.getElementById('screen-login').classList.remove('active');
+            document.getElementById('screen-lobby').classList.add('active');
+            document.getElementById('lobby-msg').innerText = msg.count + " Joueurs";
+            document.getElementById('btn-start').disabled = !msg.ready;
+        } 
+        else if(msg.type === 'STATE_UPDATE') {
+            // Sauvegarde de l'ancien état pour comparaison
+            const oldDeclarer = gameState ? gameState.last_declarer_idx : null;
+            const oldTurn = gameState ? gameState.current_player_idx : null;
+            
+            // Mise à jour de l'état
+            gameState = msg; 
+            myIdx = msg.my_idx;
+
+            // --- GESTION DES ÉCRANS ---
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-game').classList.add('active');
+
+            // --- GESTION DES SONS ET LOGS ---
+
+            // 1. Nouvelle manche (Mélange)
+            if (msg.new_round) {
+                resetGameInputs();
+                showFeedback(gameState.current_player_idx, "C'est parti !", "#f1c40f");
+                playSfx('start');
+                addLog("--- NOUVELLE MANCHE ---", true);
+            }
+            
+            // 2. Affichage du Log (Texte)
+            if (msg.log) {
+                addLog(msg.log);
+            }
+
+            // 3. Son d'enchère (Jeton)
+            // On joue le son si le "déclarant" a changé (quelqu'un a joué)
+            // ET que ce n'est pas une nouvelle manche
+            if (gameState.last_declarer_idx !== null && gameState.last_declarer_idx !== oldDeclarer && !msg.new_round) {
+                playSfx('bid');
+                showFeedback(gameState.last_declarer_idx, "A ENCHÉRI", "#fff");
+            }
+
+            // 4. Son "C'est mon tour" (Ding)
+            // Si c'est à moi de jouer maintenant ET que ce n'était pas à moi juste avant
+            if (myIdx === gameState.current_player_idx && oldTurn !== myIdx) {
+                // Petit délai pour ne pas jouer en même temps que le bruit de jeton
+                setTimeout(() => playSfx('turn'), 500);
+            }
+
+            render();
+        } 
+        else if(msg.type === 'ERROR') {
+            alert(msg.msg);
+        } 
+        else if(msg.type === 'SHOWDOWN') {
+            // Son dramatique
+            if (msg.is_truth) {
+                // C'était la VÉRITÉ -> Celui qui a dit "Menteur" s'est trompé -> Son d'échec
+                playSfx('truth_hurt');
+            } else {
+                // C'était un MENSONGE -> Celui qui a dit "Menteur" a eu raison -> Son de réussite
+                playSfx('lie_found');
+            }
+            
+            // Effet visuel
+            document.body.classList.add('shake-screen');
+            setTimeout(() => document.body.classList.remove('shake-screen'), 500);
+            
+            addLog(msg.title + " " + msg.detail, true);
+            showResult(msg);
+        } 
+        else if(msg.type === 'GAME_OVER') {
+            alert("GAGNANT: " + msg.winner); location.reload();
+        }
+        else if(msg.type === 'EMOTE') {
+            showEmote(msg.idx, msg.content);
+            
+            // Joue le son correspondant au mot-clé
+            switch(msg.content) {
+                case 'gelo': playSfx('gelo'); break;
+                case 'max': playSfx('max'); break;
+                case 'matou': playSfx('matou'); break;
+                case 'germinal': playSfx('germinal'); break;
+                case 'ciliem': playSfx('ciliem'); break;
+            }
+        }
+    }
+
+        // --- RENDU ---
+        function getSrc(r, s) { 
+            let rn = RANK_NAMES[r]||r, sn = SUIT_NAMES[s];
+            return `assets/cards/${rn}_of_${sn}.png`;
+        }
+
+        function render() {
+            // --- 1. RENDU DES JOUEURS (ADVERSAIRES) ---
+            const cont = document.getElementById('players-container');
+            cont.innerHTML = '';
+            
+            const count = gameState.players.length;
+            // Rayons de l'ellipse en % de la div parente (Responsive)
+            const rx = 35, ry = 25; 
+
+            gameState.players.forEach((p, i) => {
+                // On ne s'affiche pas soi-même dans le cercle (sauf si on est seul pour debug)
+                if(i === myIdx && count > 1) return; 
+
+                const el = document.createElement('div');
+                // Ajout de la classe 'active' pour l'animation de pulsation si c'est son tour
+                el.className = `player ${i === gameState.current_player_idx ? 'active' : ''}`;
+                
+                // Calcul de la position en cercle (Me = toujours virtuellement en bas)
+                const ang = ((i - myIdx + count) % count) * (2*Math.PI/count) + Math.PI/2;
+                el.style.left = (50 + rx * Math.cos(ang)) + '%';
+                el.style.top = (45 + ry * Math.sin(ang)) + '%';
+                el.style.transform = 'translate(-50%, -50%)';
+                
+                // Génération HTML des cartes adverses (Dos)
+                let cardsHtml = '';
+                if (p.eliminated) {
+                    cardsHtml = '<div class="info-tag" style="color:#e74c3c; font-weight:bold; background:rgba(0,0,0,0.8);">💀 ÉLIMINÉ</div>';
+                } else {
+                    cardsHtml = '<div class="opponent-hand">';
+                    // On crée une image par carte possédée
+                    for(let k=0; k < p.card_count; k++) {
+                        cardsHtml += '<img src="assets/cards/back.png" class="mini-card">';
+                    }
+                    cardsHtml += '</div>';
+                }
+
+                // Injection du HTML complet du joueur
+                el.innerHTML = `
+                    <div class="avatar">
+                        ${p.name.substring(0,2)}
+                        ${i === gameState.last_declarer_idx ? '<span style="position:absolute; top:-15px; right:-10px; font-size:1.5rem">📢</span>' : ''}
+                    </div>
+                    <div style="font-size:0.9rem; font-weight:bold; margin-top:5px; text-shadow:0 1px 2px black; color: white;">
+                        ${p.name}
+                    </div>
+                    ${cardsHtml}
+                `;
+                cont.appendChild(el);
+            });
+
+            // --- 2. RENDU DE MA MAIN ---
+            const handDiv = document.getElementById('my-cards');
+            handDiv.innerHTML = '';
+            
+            gameState.my_hand.forEach((c, index) => {
+                const img = document.createElement('img');
+                // Gestion du bouton "Cacher/Révéler"
+                img.src = handHidden ? 'assets/cards/back.png' : getSrc(c[0], c[1]);
+                
+                // Animation : Les cartes arrivent une par une (0s, 0.05s, 0.10s...)
+                img.style.animationDelay = `${index * 0.05}s`; 
+                // Assurez-vous d'avoir ajouté la classe .hand-cards img { animation: slideInUp ... } dans le CSS
+                
+                handDiv.appendChild(img);
+            });
+
+            // --- 3. RENDU DU CENTRE (CLAIM / ANNONCE) ---
+            // Appelle la fonction dédiée qu'on a créée précédemment
+            renderClaim(gameState.claim);
+
+            // --- 4. GESTION DES BOUTONS (INPUTS) ---
+            const isMyTurn = (myIdx === gameState.current_player_idx);
+            const controlsPanel = document.getElementById('controls');
+
+            // On grise le panneau si ce n'est pas mon tour
+            controlsPanel.style.opacity = isMyTurn ? '1' : '0.5';
+            controlsPanel.style.pointerEvents = isMyTurn ? 'all' : 'none';
+
+            // --- NOUVEAU : GESTION DU BOUTON MENTEUR ---
+            const btnCall = document.querySelector('.btn-call');
+            
+            // Si aucune enchère n'est en cours (gameState.claim est null), on ne peut pas appeler Menteur
+            if (!gameState.claim) {
+                btnCall.disabled = true;
+                btnCall.style.opacity = "0.5";
+                btnCall.style.cursor = "not-allowed";
+                btnCall.title = "Impossible au premier tour";
+            } else {
+                btnCall.disabled = false;
+                btnCall.style.opacity = "1";
+                btnCall.style.cursor = "pointer";
+                btnCall.title = "";
+            }
+        }
+
+        // --- LOGIQUE VISUELLE AVANCÉE (Gère les infos partielles) ---
+        function generateVisuals(combo, r1, r2, suit) {
+            let cards = [];
+            
+            // Helper pour alterner les couleurs (Pique, Coeur, Trèfle, Carreau)
+            // Utile pour la "Suite" normale pour montrer que ce n'est pas une couleur
+            const getMixedSuit = (idx) => SUITS[idx % 4];
+            
+            const addBack = (n) => { for(let i=0; i<n; i++) cards.push({r: 'back'}); };
+            const addRank = (r, n, offset=0) => { for(let i=0; i<n; i++) cards.push({r: r, s: suit || getMixedSuit(offset+i)}); };
+            const addSuit = (s, n) => {
+                const deco = ['A', 'K', 'Q', 'J', '10']; 
+                for(let i=0; i<n; i++) cards.push({r: deco[i], s: s});
+            };
+
+            // --- LOGIQUE SPÉCIALE SUITES & QUINTES ---
+            if (combo === 'Suite' || combo === 'QuinteFlush' || combo === 'QuinteFlushRoyale') {
+                
+                let targetSuit = suit || '♠'; // Couleur par défaut si vague pour Royale/Flush
+                let ranksToShow = [];
+
+                if (combo === 'QuinteFlushRoyale') {
+                    // Toujours 10, J, Q, K, A
+                    ranksToShow = ['10', 'J', 'Q', 'K', 'A'];
+                    
+                    // Si le joueur n'a pas précisé la couleur, on affiche quand même la royale
+                    // mais on peut laisser les dos si on veut être strict. 
+                    // Ici on l'affiche en Pique par défaut ou la couleur choisie.
+                    ranksToShow.forEach(r => cards.push({r: r, s: targetSuit}));
+                } 
+                else {
+                    // Suite ou Quinte Flush Normale
+                    if (r1) {
+                        // L'utilisateur a donné la carte haute (ex: "9")
+                        const endIdx = RANKS.indexOf(r1);
+                        
+                        // Cas spécial : Suite A-5 (La Roue) si r1 est '5'
+                        // (On assume que si le joueur dit "Suite au 5", c'est As-2-3-4-5)
+                        if (r1 === '5') {
+                            const wheel = ['A', '2', '3', '4', '5'];
+                            wheel.forEach((r, i) => {
+                                let s = (combo === 'QuinteFlush') ? targetSuit : getMixedSuit(i);
+                                cards.push({r: r, s: s});
+                            });
+                        } else {
+                            // Cas standard (ex: 9 -> 5,6,7,8,9)
+                            // On recule de 4 pour trouver le début
+                            let startIdx = endIdx - 4;
+                            if (startIdx < 0) startIdx = 0; // Sécurité
+
+                            for (let i = startIdx; i <= endIdx; i++) {
+                                let r = RANKS[i];
+                                // Si QuinteFlush : Même couleur. Si Suite : Couleurs mélangées.
+                                let s = (combo === 'QuinteFlush') ? targetSuit : getMixedSuit(i);
+                                cards.push({r: r, s: s});
+                            }
+                        }
+                    } else {
+                        // Si le joueur n'a pas précisé la hauteur ("Une Suite"), on met des dos
+                        addBack(5);
+                    }
+                }
+                return cards;
+            }
+
+            // --- AUTRES COMBINAISONS (Logic inchangée) ---
+            if (combo === 'Carte') r1 ? addRank(r1, 1) : addBack(1);
+            else if (combo === 'Paire') r1 ? addRank(r1, 2) : addBack(2);
+            else if (combo === 'Double Paire') {
+                r1 ? addRank(r1, 2, 0) : addBack(2);
+                r2 ? addRank(r2, 2, 2) : addBack(2);
+            }
+            else if (combo === 'Brelan') r1 ? addRank(r1, 3) : addBack(3);
+            else if (combo === 'Full') {
+                r1 ? addRank(r1, 3, 0) : addBack(3);
+                r2 ? addRank(r2, 2, 3) : addBack(2);
+            }
+            else if (combo === 'Carré') r1 ? addRank(r1, 4) : addBack(4);
+            else if (combo === 'Couleur') suit ? addSuit(suit, 5) : addBack(5);
+            else addBack(1);
+
+            return cards;
+        }
+
+        // --- NOUVELLE FONCTION : Génère le texte joli (Ex: "Paire de Rois") ---
+        function getComboText(combo, r1, r2, suit) {
+            if (!combo) return "";
+            
+            // Si aucune valeur n'est précisée (le joueur a mis "-")
+            if (!r1 && !r2 && !suit) return combo + " (indéfini)";
+
+            switch(combo) {
+                case 'Carte': 
+                    return r1 ? `Carte Haute ${r1}` : "Carte Haute";
+                case 'Paire': 
+                    return r1 ? `Paire de ${r1}` : "Une Paire";
+                case 'Double Paire': 
+                    if (r1 && r2) return `Double Paire ${r1} & ${r2}`;
+                    return "Double Paire";
+                case 'Brelan': 
+                    return r1 ? `Brelan de ${r1}` : "Brelan";
+                case 'Carré': 
+                    return r1 ? `Carré de ${r1}` : "Carré";
+                case 'Full':
+                    // Ex: Full aux 9 par les 4
+                    if (r1 && r2) return `Full aux ${r1} par les ${r2}`;
+                    if (r1) return `Full aux ${r1}`;
+                    return "Full";
+                case 'Couleur': 
+                    return suit ? `Couleur à ${suit}` : "Couleur";
+                case 'Suite':
+                case 'QuinteFlush':
+                case 'QuinteFlushRoyale':
+                    return r1 ? `${combo} (au ${r1})` : combo;
+                default: 
+                    return combo;
+            }
+        }
+
+        // --- FONCTION D'AFFICHAGE PRINCIPALE ---
+        function renderClaim(c) {
+            const txt = document.getElementById('claim-text');
+            const div = document.getElementById('visual-claim');
+            div.innerHTML = '';
+            
+            if(!c) { 
+                txt.innerText = "MANCHE " + (gameState.round || 1); 
+                return; 
+            }
+            
+            // 1. GÉNÉRATION DU TEXTE (MODIFIÉ ICI)
+            let mainText = getComboText(c.combo, c.rank1, c.rank2, c.suit);
+            
+            // Si il y a une deuxième main (Split)
+            if (c.sec_combo) {
+                const secText = getComboText(c.sec_combo, c.sec_rank1, c.sec_rank2, c.sec_suit);
+                mainText += " + " + secText;
+            }
+            
+            txt.innerText = mainText; // On applique le texte formaté
+
+            // 2. Génération des cartes visuelles (Reste identique à la version précédente)
+            const drawList = (list) => {
+                list.forEach(card => {
+                    const img = document.createElement('img');
+                    if(card.r === 'back') {
+                        img.src = 'assets/cards/back.png';
+                    } else {
+                        img.src = getSrc(card.r, card.s);
+                    }
+                    div.appendChild(img);
+                });
+            };
+
+            // Main 1 Visuelle
+            const cards1 = generateVisuals(c.combo, c.rank1, c.rank2, c.suit);
+            drawList(cards1);
+
+            // Main 2 Visuelle (Split)
+            if(c.sec_combo) {
+                const sep = document.createElement('div'); 
+                sep.className = 'separator'; 
+                sep.innerText = '+';
+                div.appendChild(sep);
+                
+                const cards2 = generateVisuals(c.sec_combo, c.sec_rank1, c.sec_rank2, c.sec_suit);
+                drawList(cards2);
+            }
+        }
+
+        function bid() {
+            const getVal = (id) => document.getElementById(id).value;
+            let d = {
+                combo: getVal('c1-combo'), rank1: getVal('c1-r1'), rank2: getVal('c1-r2'), suit: getVal('c1-suit')
+            };
+            if(document.getElementById('check-split').checked) {
+                d.sec_combo = getVal('c2-combo'); d.sec_rank1 = getVal('c2-r1'); 
+                d.sec_rank2 = getVal('c2-r2'); d.sec_suit = getVal('c2-suit');
+            }
+            send({type: 'BID', claim: d});
+        }
+
+        function showFeedback(playerIdx, text, color) {
+            const container = document.getElementById('players-container');
+            // On récupère l'élément du joueur cible (attention à l'indexage visuel)
+            // Note: C'est un peu approximatif car on recrée le DOM à chaque render.
+            // On va plutôt utiliser les coordonnées calculées.
+            
+            const count = gameState.players.length;
+            const rx = 35, ry = 25; // Mêmes valeurs que dans render()
+            
+            const ang = ((playerIdx - myIdx + count) % count) * (2*Math.PI/count) + Math.PI/2;
+            
+            // Si c'est moi (et qu'on est plusieurs), je suis en bas au centre (pas dans le cercle)
+            // Sauf logique responsive mobile. Pour simplifier, on recalcule la position :
+            
+            let left, top;
+            if (playerIdx === myIdx && count > 1) {
+                // Position approximative de "Ma main"
+                left = 50; top = 80; 
+            } else {
+                left = 50 + rx * Math.cos(ang);
+                top = 45 + ry * Math.sin(ang);
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = 'feedback-bubble';
+            bubble.innerText = text;
+            bubble.style.left = left + '%';
+            bubble.style.top = top + '%';
+            if (color) bubble.style.color = color;
+            
+            document.body.appendChild(bubble); // On ajoute au body pour être au dessus de tout
+            
+            // Nettoyage automatique après l'animation
+            setTimeout(() => bubble.remove(), 1500);
+        }
+
+        function toggleHand() { handHidden = !handHidden; render(); }
+        function showResult(msg) {
+            const m = document.getElementById('modal-result');
+            m.style.display = 'flex';
+            document.getElementById('res-title').innerText = msg.title;
+            document.getElementById('res-desc').innerText = msg.detail;
+            
+            const grid = document.getElementById('res-cards');
+            const statsEl = document.getElementById('res-stats');
+            if (msg.stats && msg.stats.length > 0) {
+                statsEl.innerText = msg.stats[0]; // Affiche "Il y avait X cartes..."
+            } else {
+                statsEl.innerText = "";
+            }
+            grid.innerHTML = '';
+
+            // --- TRIAGE DES CARTES ---
+            const cards = msg.all_cards; // Format: [['A', '♠'], ['10', '♥']...]
+            
+            // Ordre des valeurs pour le tri (2 est petit, A est grand)
+            const ranksOrder = {'2':2, '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, '10':10, 'J':11, 'Q':12, 'K':13, 'A':14};
+            // Ordre arbitraire des couleurs pour grouper proprement
+            const suitsOrder = {'♠':1, '♥':2, '♣':3, '♦':4};
+
+            // On détecte le type de tri nécessaire selon l'annonce en cours
+            const claim = gameState.claim || {};
+            const isSuitBased = ['Couleur', 'QuinteFlush', 'QuinteFlushRoyale'].includes(claim.combo);
+            const isStraight = ['Suite'].includes(claim.combo);
+
+            cards.sort((a, b) => {
+                const rA = ranksOrder[a[0]];
+                const rB = ranksOrder[b[0]];
+                const sA = suitsOrder[a[1]];
+                const sB = suitsOrder[b[1]];
+
+                if (isSuitBased) {
+                    // 1. Trier par COULEUR
+                    if (sA !== sB) return sA - sB;
+                    // 2. Puis par RANG (Descendant : As en premier)
+                    return rB - rA;
+                } else {
+                    // Cas Standard (Paires, Full, Suite...)
+                    // 1. Trier par RANG (Descendant)
+                    if (rA !== rB) return rB - rA;
+                    // 2. Puis par COULEUR
+                    return sA - sB;
+                }
+            });
+            // -------------------------
+
+            // Affichage
+            cards.forEach(c => {
+                let img = document.createElement('img');
+                img.src = getSrc(c[0], c[1]);
+                // Petite animation d'entrée pour le style
+                img.style.animation = "popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both";
+                grid.appendChild(img);
+            });
+        }
+        function closeModal() { document.getElementById('modal-result').style.display='none'; }
+    </script>
+</body>
+</html>
