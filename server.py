@@ -338,7 +338,23 @@ class GameServer:
         websocket.player_data = {'name': "Inconnu", 'hand': [], 'quota': 1, 'eliminated': False}
 
     async def unregister(self, websocket):
-        self.clients.remove(websocket)
+        if websocket in self.clients:
+            self.clients.remove(websocket)
+        
+        # --- AJOUT : RESET SI PLUS PERSONNE ---
+        if len(self.clients) == 0:
+            print("Plus de joueurs. Reset du serveur.")
+            self.game_started = False
+            self.current_claim = None
+            self.round_num = 0
+            self.deck = []
+        # --------------------------------------
+
+        # Si une partie est en cours et qu'il ne reste qu'un seul joueur, on arrête aussi
+        elif self.game_started and len(self.clients) < 2:
+            self.game_started = False
+            await self.broadcast({"type": "GAME_OVER", "winner": "Abandon (Manque de joueurs)"})
+
         await self.broadcast_lobby()
 
     async def broadcast_lobby(self):
@@ -370,16 +386,33 @@ class GameServer:
             await self.send_to(ws, state)
 
     def start_new_round(self):
-        self.round_num += 1; self.current_claim = None; self.last_declarer_idx = None
-        self.deck = self.make_deck(); random.shuffle(self.deck)
+        self.round_num += 1
+        self.current_claim = None
+        self.last_declarer_idx = None
+        
+        self.deck = self.make_deck()
+        random.shuffle(self.deck)
+        
         active = [c for c in self.clients if not c.player_data['eliminated']]
         
+        # --- MODIFICATION ICI ---
         if len(active) <= 1:
-            asyncio.create_task(self.broadcast({"type": "GAME_OVER", "winner": active[0].player_data['name'] if active else "Personne"}))
+            winner_name = active[0].player_data['name'] if active else "Personne"
+            # On prévient que c'est fini
+            asyncio.create_task(self.broadcast({"type": "GAME_OVER", "winner": winner_name}))
+            
+            # CRUCIAL : On dit au serveur que le jeu est fini pour pouvoir relancer !
+            self.game_started = False 
+            # On peut aussi réinitialiser les éliminations pour la prochaine partie si on veut
+            for c in self.clients:
+                c.player_data['eliminated'] = False
+                c.player_data['quota'] = 1
             return
+        # ------------------------
 
         for ws in active:
             ws.player_data['hand'] = []
+            # ... (le reste du code reste identique)
             for _ in range(ws.player_data['quota']):
                 if self.deck: ws.player_data['hand'].append(self.deck.pop())
         
@@ -485,4 +518,5 @@ async def main():
         await asyncio.Future()
 
 if __name__ == "__main__":
+
     asyncio.run(main())
