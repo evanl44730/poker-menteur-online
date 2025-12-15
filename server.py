@@ -50,6 +50,7 @@ class Claim:
         if data is None: return None
         return Claim(**data)
 
+    # Dans la classe Claim
     def _get_score_tuple(self, c_combo, r1, r2, s):
         """ Calcule un score numérique pour comparer les enchères. """
         if not c_combo: return (-1, -1, -1, -1)
@@ -62,18 +63,19 @@ class Claim:
         val_r2 = RANKS.index(r2) if r2 in RANKS else -1
         
         # Logique de scoring:
-        # 1. Type de combo (Brelan > Paire)
-        # 2. Valeur Principale (Brelan de Rois > Brelan de Dames > Brelan indéfini)
-        # 3. Valeur Secondaire (Full Rois par Dames > Full Rois par 2)
-        
         primary = max(val_r1, val_r2)
         secondary = min(val_r1, val_r2)
         
         if c_combo == 'Full':
-            primary = val_r1 # La carte du brelan compte en premier
+            primary = val_r1 
             secondary = val_r2
 
-        return (combo_idx, primary, secondary)
+        # --- NOUVEAU : Bonus de spécificité (Couleur définie > non définie) ---
+        # 1 si une couleur est spécifiée, 0 sinon.
+        # Cela permet à "Couleur à Pique" de battre "Couleur" (vague).
+        suit_score = 1 if s else 0
+
+        return (combo_idx, primary, secondary, suit_score)
 
     def get_key(self):
         """ Retourne une clé de comparaison (Main 1, Main 2) """
@@ -86,6 +88,7 @@ class GameServer:
         self.clients = set()
         self.game_started = False
         self.current_player_idx = 0
+        self.is_blind = False
         self.last_declarer_idx = None
         self.current_claim = None
         self.round_num = 0
@@ -338,24 +341,61 @@ class GameServer:
         websocket.player_data = {'name': "Inconnu", 'hand': [], 'quota': 1, 'eliminated': False}
 
     async def unregister(self, websocket):
+        # 1. Gestion des indices (pour ne pas casser le tour de jeu)
+        if self.game_started and websocket in self.clients:
+            clients_list = list(self.clients)
+            try:
+                left_idx = clients_list.index(websocket)
+                
+                # Ajustement du pointeur du joueur actuel
+                if left_idx < self.current_player_idx:
+                    self.current_player_idx -= 1
+                elif left_idx == self.current_player_idx:
+                    if self.current_player_idx >= len(self.clients) - 1:
+                        self.current_player_idx = 0
+
+                # Ajustement du pointeur du dernier déclarant
+                if self.last_declarer_idx is not None:
+                    if left_idx < self.last_declarer_idx:
+                        self.last_declarer_idx -= 1
+                    elif left_idx == self.last_declarer_idx:
+                        self.last_declarer_idx = None
+                        self.current_claim = None
+                        
+            except ValueError:
+                pass
+
+        # 2. Suppression définitive du client
         if websocket in self.clients:
             self.clients.remove(websocket)
+
+        # 3. Logique de continuation ou fin de partie
+        if self.game_started:
+            active_players = [c for c in self.clients if not c.player_data.get('eliminated')]
+            
+            # Cas A : Il ne reste plus assez de joueurs -> FIN DE PARTIE
+            if len(active_players) < 2:
+                winner = active_players[0].player_data['name'] if active_players else "Personne"
+                await self.broadcast({"type": "GAME_OVER", "winner": winner})
+                
+                # On réinitialise le jeu
+                self.game_started = False
+                self.round_num = 0
+                self.current_claim = None
+                
+                # C'est fini, DONC on peut rafraîchir le lobby pour tout le monde
+                await self.broadcast_lobby()
+            
+            # Cas B : La partie continue -> PAS DE LOBBY UPDATE
+            else:
+                self.check_player_index()
+                leaver_name = websocket.player_data.get('name', 'Un joueur')
+                # On met juste à jour l'interface de jeu (supprime l'avatar du partant)
+                await self.send_game_state(msg_log=f"{leaver_name} a quitté la partie (Abandon).")
         
-        # --- AJOUT : RESET SI PLUS PERSONNE ---
-        if len(self.clients) == 0:
-            print("Plus de joueurs. Reset du serveur.")
-            self.game_started = False
-            self.current_claim = None
-            self.round_num = 0
-            self.deck = []
-        # --------------------------------------
-
-        # Si une partie est en cours et qu'il ne reste qu'un seul joueur, on arrête aussi
-        elif self.game_started and len(self.clients) < 2:
-            self.game_started = False
-            await self.broadcast({"type": "GAME_OVER", "winner": "Abandon (Manque de joueurs)"})
-
-        await self.broadcast_lobby()
+        else:
+            # 4. Si la partie n'avait pas commencé, on met à jour le lobby normalement
+            await self.broadcast_lobby()
 
     async def broadcast_lobby(self):
         await self.broadcast({"type": "LOBBY_UPDATE", "count": len(self.clients), "ready": len(self.clients) >= 2})
@@ -370,7 +410,7 @@ class GameServer:
         try: await ws.send(json.dumps(message))
         except: pass
 
-    async def send_game_state(self, new_round=False, msg_log=None):
+    async def send_game_state(self, new_round=False, msg_log=None,extra_effect=None):
         clients_list = list(self.clients)
         public_players = [{'name': c.player_data['name'], 'card_count': len(c.player_data['hand']), 
                            'eliminated': c.player_data['eliminated'], 'quota': c.player_data['quota']} for c in clients_list]
@@ -379,45 +419,62 @@ class GameServer:
         for i, ws in enumerate(clients_list):
             state = {
                 "type": "STATE_UPDATE", "round": self.round_num,
+                "effect": extra_effect,
+                "is_blind": self.is_blind,
                 "current_player_idx": self.current_player_idx, "last_declarer_idx": self.last_declarer_idx,
                 "claim": claim_dict, "players": public_players,
                 "my_hand": ws.player_data['hand'], "my_idx": i, "log": msg_log, "new_round": new_round
             }
             await self.send_to(ws, state)
 
+    # Dans la classe GameServer :
+
     def start_new_round(self):
-        self.round_num += 1
-        self.current_claim = None
-        self.last_declarer_idx = None
+        # --- FIX ANTI-FANTÔME ---
+        # On retire manuellement les joueurs qui s'appellent "Inconnu" (ceux bloqués au login)
+        # pour éviter qu'ils ne soient inclus dans la partie comme joueurs vides.
+        ghosts = [ws for ws in self.clients if ws.player_data.get('name') == "Inconnu"]
+        for g in ghosts:
+            if g in self.clients:
+                self.clients.remove(g)
+        # ------------------------
         
-        self.deck = self.make_deck()
-        random.shuffle(self.deck)
+        self.is_blind = (random.random() < 0.05)
+        self.round_num += 1; self.current_claim = None; self.last_declarer_idx = None
+        self.deck = self.make_deck(); random.shuffle(self.deck)
         
         active = [c for c in self.clients if not c.player_data['eliminated']]
         
-        # --- MODIFICATION ICI ---
         if len(active) <= 1:
-            winner_name = active[0].player_data['name'] if active else "Personne"
-            # On prévient que c'est fini
-            asyncio.create_task(self.broadcast({"type": "GAME_OVER", "winner": winner_name}))
-            
-            # CRUCIAL : On dit au serveur que le jeu est fini pour pouvoir relancer !
-            self.game_started = False 
-            # On peut aussi réinitialiser les éliminations pour la prochaine partie si on veut
-            for c in self.clients:
-                c.player_data['eliminated'] = False
-                c.player_data['quota'] = 1
+            asyncio.create_task(self.broadcast({"type": "GAME_OVER", "winner": active[0].player_data['name'] if active else "Personne"}))
             return
-        # ------------------------
 
         for ws in active:
             ws.player_data['hand'] = []
-            # ... (le reste du code reste identique)
             for _ in range(ws.player_data['quota']):
                 if self.deck: ws.player_data['hand'].append(self.deck.pop())
         
+        is_revolution = False
+        
+        # 3. On ne tente la Révolution QUE SI le mode Blind n'est PAS actif
+        if not self.is_blind:
+            # 10% de chance, et il faut au moins 2 joueurs
+            is_revolution = (random.random() < 0.10) and (len(self.clients) > 1)
+            
+        msg_log = None
+        if is_revolution:
+            msg_log = "🌪️ RÉVOLUTION ! Les mains ont tourné !"
+            # On décale les mains : Le joueur 1 prend la main du 2, le 2 du 3, etc.
+            # On récupère juste les listes de cartes
+            hands = [ws.player_data['hand'] for ws in active]
+            # On décale la liste de 1 vers la gauche
+            rotated_hands = hands[1:] + hands[:1]
+            
+            # On réattribue
+            for i, ws in enumerate(active):
+                ws.player_data['hand'] = rotated_hands[i]
         self.check_player_index()
-        asyncio.create_task(self.send_game_state(new_round=True))
+        asyncio.create_task(self.send_game_state(new_round=True, msg_log=msg_log, extra_effect="REVOLUTION" if is_revolution else None))
 
     def check_player_index(self):
         clients_list = list(self.clients)
@@ -430,6 +487,12 @@ class GameServer:
             attempts += 1
 
     async def handler(self, websocket):
+        # --- MODIFICATION : Blocage si la partie est déjà lancée ---
+        if self.game_started:
+            await self.send_to(websocket, {"type": "ERROR", "msg": "Une partie est déjà en cours. Impossible de rejoindre."})
+            return # Coupe la connexion immédiatement
+        # -----------------------------------------------------------
+
         await self.register(websocket)
         try:
             async for message in websocket:
@@ -441,10 +504,7 @@ class GameServer:
                     await self.broadcast_lobby()
                 
                 elif mtype == 'EMOTE':
-                    # CORRECTION : On définit la liste ici pour éviter l'erreur "referenced before assignment"
                     clients_list = list(self.clients) 
-                    
-                    # On vérifie que le client est bien dans la liste pour éviter un autre crash
                     if websocket in clients_list:
                         await self.broadcast({
                             "type": "EMOTE", 
@@ -458,17 +518,21 @@ class GameServer:
                         self.start_new_round()
 
                 elif self.game_started:
+                    # On régénère la liste car l'ordre peut changer après un départ
                     clients_list = list(self.clients)
+                    
+                    # Sécurité : si l'index dépasse après un bug rare
+                    if self.current_player_idx >= len(clients_list):
+                        self.current_player_idx = 0
+                        
                     if clients_list[self.current_player_idx] != websocket: continue
 
                     if mtype == 'BID':
                         c_data = data['claim']
                         new_claim = Claim.from_dict(c_data)
                         
-                        # --- VALIDATION HIERARCHIE ---
                         valid = True
                         if self.current_claim:
-                             # On compare les tuples de score
                              if not (new_claim.get_key() > self.current_claim.get_key()):
                                  valid = False
                         
@@ -477,13 +541,17 @@ class GameServer:
                             self.last_declarer_idx = self.current_player_idx
                             self.current_player_idx = (self.current_player_idx + 1) % len(clients_list)
                             self.check_player_index()
-                            # On utilise la nouvelle méthode __str__ de Claim
                             await self.send_game_state(msg_log=f"{websocket.player_data['name']}: {new_claim}")
                         else:
                             await self.send_to(websocket, {"type": "ERROR", "msg": "Enchère insuffisante ! Vous devez monter."})
 
                     elif mtype == 'CALL':
-                        exists, all_cards, stats = self.check_truth() # Récupère les stats
+                        # Sécurité : Impossible d'appeler Menteur si personne n'a joué (cas où le déclarant quitte)
+                        if self.last_declarer_idx is None:
+                            await self.send_to(websocket, {"type": "ERROR", "msg": "Impossible, le joueur précédent est parti. Veuillez enchérir."})
+                            continue
+
+                        exists, all_cards, stats = self.check_truth()
                         declarer_ws = clients_list[self.last_declarer_idx]
                         loser_ws = websocket if exists else declarer_ws
                         
@@ -495,12 +563,18 @@ class GameServer:
                         await self.broadcast({
                             "type": "SHOWDOWN", 
                             "title": "VÉRITÉ !" if exists else "MENSONGE !", 
-                            "is_truth": exists,  # <--- AJOUTEZ CETTE LIGNE (True si vérité, False si mensonge)
+                            "is_truth": exists,
                             "detail": msg, 
                             "all_cards": all_cards,
                             "stats": stats
                         })
-                        self.current_player_idx = clients_list.index(loser_ws)
+                        
+                        # Mise à jour de l'index vers le perdant
+                        try:
+                            self.current_player_idx = clients_list.index(loser_ws)
+                        except ValueError:
+                            self.current_player_idx = 0 # Fallback si le perdant quitte pile à ce moment
+                            
                         self.check_player_index()
                         await asyncio.sleep(6)
                         self.start_new_round()
