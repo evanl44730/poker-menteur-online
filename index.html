@@ -18,6 +18,145 @@
             display: flex; 
             flex-direction: column; 
         }
+
+        /* --- MODE BLIND (Lampe Torche) --- */
+        :root {
+            --cursor-x: 50vw;
+            --cursor-y: 50vh;
+        }
+
+        /* Le calque noir qui recouvre tout */
+        #blind-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; /* Laisse passer les clics */
+            z-index: 900; /* Au dessus de tout sauf des modales */
+            
+            /* L'effet lampe torche : Un cercle transparent au milieu d'un fond noir */
+            background: radial-gradient(circle 300px at var(--cursor-x) var(--cursor-y), 
+                        transparent 0%, 
+                        rgba(0,0,0,0.5) 30%, 
+                        black 70%);
+            
+            display: none; /* Caché par défaut */
+            transition: opacity 1s;
+        }
+
+        /* Quand le mode est activé via JS */
+        body.blind-mode #blind-overlay {
+            display: block;
+        }
+
+        /* RÈGLE D'OR : On cache VOS cartes, même sous la lampe torche */
+        body.blind-mode .my-hand-area img {
+            filter: brightness(0) !important; /* Rend les cartes toutes noires */
+            pointer-events: none;
+        }
+        
+        /* Petit message d'ambiance */
+        .blind-warning {
+            position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
+            color: #c0392b; font-family: 'Courier New', monospace; font-weight: bold;
+            font-size: 2rem; z-index: 950; display: none; text-shadow: 0 0 10px red;
+            pointer-events: none;
+        }
+        body.blind-mode .blind-warning { display: block; animation: pulse-text 1s infinite; }
+        
+        @keyframes pulse-text { 50% { opacity: 0.5; } }
+
+        @keyframes spinPage {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(10deg) scale(0.9); background: #8e44ad; } /* Violet mystique */
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        
+        .revolution-anim {
+            animation: spinPage 1s ease-in-out;
+        }
+
+        /* --- THÈME RÉVOLUTION (Violet & Symbole) --- */
+        
+        /* 1. Changement de couleur du Tapis */
+        body.revolution-active #game-view {
+            /* On passe du vert au dégradé Violet/Rouge chaotique */
+            background: radial-gradient(circle, #8e44ad 20%, #2c3e50 90%) !important;
+            box-shadow: inset 0 0 50px #000;
+            border: 4px solid #f1c40f; /* Bordure dorée pour marquer l'événement */
+        }
+
+        /* 2. Le Symbole Géant en fond */
+        .revolution-watermark {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20rem; /* Très gros */
+            color: rgba(255, 255, 255, 0.15); /* À peine visible (filigrane) */
+            pointer-events: none;
+            z-index: 0; /* Tout au fond */
+            display: none;
+        }
+
+        /* Animation de rotation lente du symbole */
+        @keyframes slowSpin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        body.revolution-active .revolution-watermark {
+            display: block;
+            animation: slowSpin 20s linear infinite;
+        }
+
+        /* Petit détail : Les avatars changent aussi de couleur de bordure */
+        body.revolution-active .avatar {
+            border-color: #9b59b6 !important;
+        }
+
+        /* On garde aussi la petite animation de rotation d'avant si vous l'aviez mise */
+        body.revolution-active .main-container {
+             animation: spinPage 1s ease-in-out;
+        }
+
+        /* --- MODE MATCH POINT (DANGER) --- */
+        
+        /* 1. L'Avatar en Danger (Battement de coeur) */
+        @keyframes heartbeat {
+            0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            50% { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 20px 10px rgba(231, 76, 60, 0); }
+            100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+
+        .player.danger-mode .avatar {
+            animation: heartbeat 0.8s infinite ease-in-out !important; /* Prioritaire sur les autres anims */
+            border-color: #e74c3c !important; /* Rouge vif */
+            background: #c0392b !important;
+            color: white;
+        }
+
+        /* 2. La Vignette Rouge (Si C'EST MOI qui suis en danger) */
+        #danger-vignette {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 850;
+            
+            /* Vignette rouge sombre sur les bords */
+            box-shadow: inset 0 0 150px rgba(192, 57, 43, 0.9);
+            display: none;
+            mix-blend-mode: multiply; /* Assombrit l'ambiance */
+        }
+        
+        /* Animation de la vignette (le stress monte et descend) */
+        @keyframes vignettePulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        body.in-danger #danger-vignette {
+            display: block;
+            animation: vignettePulse 2s infinite;
+        }
         
         /* ECRANS */
         .screen { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
@@ -416,6 +555,10 @@
 </head>
 <body>
 
+    <div id="blind-overlay"></div>
+    <div id="danger-vignette"></div>
+    <div id="blind-overlay"></div>
+    <div class="blind-warning">⚠️ PANNE DE COURANT ⚠️</div>
     <div id="screen-login" class="screen active">
         <div class="login-box">
             <h1>POKER MENTEUR</h1>
@@ -438,6 +581,7 @@
         🔊
     </button>
         <div id="game-view">
+            <div class="revolution-watermark">♻️</div>
             <div id="players-container"></div>
             <div class="center-area">
                 <div id="claim-text" class="claim-text">...</div>
@@ -484,7 +628,7 @@
                         </div>
 
                         <div class="row-selects">
-                            <select id="c1-combo" onchange="updateInputs(1)"></select>
+                            <select id="c1-combo" onchange="updateInputs(1,true)"></select>
                         </div>
                         <div class="row-selects" style="margin-top:5px">
                             <select id="c1-r1" style="display:none"></select>
@@ -502,7 +646,7 @@
                         
                         <div id="split-inputs" style="display:none; width:100%;">
                             <div class="row-selects">
-                                <select id="c2-combo" onchange="updateInputs(2)"></select>
+                                <select id="c2-combo" onchange="updateInputs(2,true)"></select>
                             </div>
                             <div class="row-selects" style="margin-top:5px">
                                 <select id="c2-r1" style="display:none"></select>
@@ -542,6 +686,12 @@
         const SOUNDS = {
             // Un petit "pop" discret pour signaler mon tour
             turn: new Audio('assets/sounds/turn.mp3'),
+
+            heartbeat: new Audio('assets/sounds/heart.mp3'),
+
+            revolution : new Audio('assets/sounds/revolution.mp3'),
+
+            blind: new Audio('assets/sounds/blind.mp3'),
             
             // Bruit de pièce/jeton sur du bois pour l'enchère
             bid: new Audio('assets/sounds/bet.mp3'),
@@ -693,12 +843,21 @@
         initSelects('c1'); initSelects('c2', true);
         updateInputs(1); updateInputs(2);
 
-        function updateInputs(n) {
+        function updateInputs(n, isUserChange=false) {
             const p = `c${n}`;
             const c = document.getElementById(`${p}-combo`).value;
             const r1 = document.getElementById(`${p}-r1`);
             const r2 = document.getElementById(`${p}-r2`);
             const s = document.getElementById(`${p}-suit`);
+
+            // --- AJOUT : Réinitialiser les valeurs si l'utilisateur change de combo ---
+            // Cela évite de garder "10" si on passe de "Suite" à "Quinte Flush"
+            if (isUserChange) {
+                r1.value = "";
+                r2.value = "";
+                s.value = "";
+            }
+            // -------------------------------------------------------------------------
 
             // Gestion de l'affichage des sélecteurs (Rank/Suit)
             r1.style.display = 'none'; r2.style.display = 'none'; s.style.display = 'none';
@@ -707,13 +866,12 @@
             if(['Double Paire','Full'].includes(c)) r2.style.display = 'block';
             if(['Couleur','QuinteFlush','QuinteFlushRoyale'].includes(c)) s.style.display = 'block';
 
-            // --- NOUVEAU : Désactivation automatique du Split ---
             // Si on modifie la Main 1 (n=1), on coupe la Main 2
             if (n === 1) {
                 const splitCheck = document.getElementById('check-split');
                 if (splitCheck.checked) {
                     splitCheck.checked = false;
-                    toggleSplit(); // Met à jour l'affichage pour cacher la main 2
+                    toggleSplit(); 
                 }
             }
         }
@@ -787,6 +945,31 @@
             // Mise à jour de l'état
             gameState = msg; 
             myIdx = msg.my_idx;
+
+            if (msg.new_round) {
+                 document.body.classList.remove('revolution-active');
+            }
+
+            if (msg.effect === 'REVOLUTION') {
+                document.body.classList.add('revolution-active');
+                
+                // Petit feedback sonore et visuel immédiat (optionnel)
+                if(msg.new_round) { // Pour ne le jouer qu'une fois au début
+                    playSfx('revolution'); 
+                    showFeedback(myIdx, "🔄 RÉVOLUTION !", "#9b59b6");
+                }
+            }
+            if (msg.is_blind) {
+                document.body.classList.add('blind-mode');
+                
+                // On joue le son UNIQUEMENT si c'est le tout début de la manche
+                if (msg.new_round) {
+                    addLog("⚠️ MODE AVEUGLE ACTIVÉ !", true);
+                    playSfx('blind'); // <--- AJOUTEZ ICI
+                }
+            } else {
+                document.body.classList.remove('blind-mode');
+            }
 
             // --- GESTION DES ÉCRANS ---
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -881,14 +1064,24 @@
                 if(i === myIdx && count > 1) return; 
 
                 const el = document.createElement('div');
-                // Ajout de la classe 'active' pour l'animation de pulsation si c'est son tour
-                el.className = `player ${i === gameState.current_player_idx ? 'active' : ''}`;
+                const isDanger = (p.quota === 6);
+                let classes = 'player';
+                if (i === gameState.current_player_idx) classes += ' active';
+                if (isDanger) classes += ' danger-mode'; // Ajoute la classe CSS rouge
                 
+                el.className = classes;
+                // Ajout de la classe 'active' pour l'animation de pulsation si c'est son tour
+            
                 // Calcul de la position en cercle (Me = toujours virtuellement en bas)
                 const ang = ((i - myIdx + count) % count) * (2*Math.PI/count) + Math.PI/2;
                 el.style.left = (50 + rx * Math.cos(ang)) + '%';
                 el.style.top = (45 + ry * Math.sin(ang)) + '%';
                 el.style.transform = 'translate(-50%, -50%)';
+
+                if (i === myIdx) {
+                    if (isDanger) document.body.classList.add('in-danger');
+                    else document.body.classList.remove('in-danger');
+                }
                 
                 // Génération HTML des cartes adverses (Dos)
                 let cardsHtml = '';
@@ -960,6 +1153,11 @@
                 btnCall.style.cursor = "pointer";
                 btnCall.title = "";
             }
+
+            const currentPlayer = gameState.players[gameState.current_player_idx];
+            if (currentPlayer && currentPlayer.quota === 6 && !currentPlayer.eliminated) {
+                playSfx('heartbeat'); // Petit effet sonore aléatoire d'ambiance
+            }
         }
 
         // --- LOGIQUE VISUELLE AVANCÉE (Gère les infos partielles) ---
@@ -980,47 +1178,40 @@
             // --- LOGIQUE SPÉCIALE SUITES & QUINTES ---
             if (combo === 'Suite' || combo === 'QuinteFlush' || combo === 'QuinteFlushRoyale') {
                 
-                let targetSuit = suit || '♠'; // Couleur par défaut si vague pour Royale/Flush
-                let ranksToShow = [];
-
+                let targetSuit = suit || '♠';
+                
                 if (combo === 'QuinteFlushRoyale') {
                     // Toujours 10, J, Q, K, A
-                    ranksToShow = ['10', 'J', 'Q', 'K', 'A'];
-                    
-                    // Si le joueur n'a pas précisé la couleur, on affiche quand même la royale
-                    // mais on peut laisser les dos si on veut être strict. 
-                    // Ici on l'affiche en Pique par défaut ou la couleur choisie.
-                    ranksToShow.forEach(r => cards.push({r: r, s: targetSuit}));
+                    ['10', 'J', 'Q', 'K', 'A'].forEach(r => cards.push({r: r, s: targetSuit}));
                 } 
                 else {
                     // Suite ou Quinte Flush Normale
                     if (r1) {
-                        // L'utilisateur a donné la carte haute (ex: "9")
                         const endIdx = RANKS.indexOf(r1);
-                        
-                        // Cas spécial : Suite A-5 (La Roue) si r1 est '5'
-                        // (On assume que si le joueur dit "Suite au 5", c'est As-2-3-4-5)
-                        if (r1 === '5') {
-                            const wheel = ['A', '2', '3', '4', '5'];
-                            wheel.forEach((r, i) => {
-                                let s = (combo === 'QuinteFlush') ? targetSuit : getMixedSuit(i);
-                                cards.push({r: r, s: s});
-                            });
-                        } else {
-                            // Cas standard (ex: 9 -> 5,6,7,8,9)
-                            // On recule de 4 pour trouver le début
-                            let startIdx = endIdx - 4;
-                            if (startIdx < 0) startIdx = 0; // Sécurité
+                        let indices = [];
 
-                            for (let i = startIdx; i <= endIdx; i++) {
-                                let r = RANKS[i];
-                                // Si QuinteFlush : Même couleur. Si Suite : Couleurs mélangées.
-                                let s = (combo === 'QuinteFlush') ? targetSuit : getMixedSuit(i);
-                                cards.push({r: r, s: s});
-                            }
+                        // On génère 5 cartes en remontant (ex: pour 4 -> 4, 3, 2, A, K)
+                        for(let i=0; i<5; i++) {
+                            let idx = endIdx - i;
+                            
+                            // FORMULE CIRCULAIRE : Si on descend en dessous de 0 (le 2), on repart à la fin (As, Roi...)
+                            if (idx < 0) idx = RANKS.length + idx; 
+                            
+                            indices.push(idx);
                         }
+                        
+                        // On inverse pour afficher de gauche à droite (K, A, 2, 3, 4)
+                        indices.reverse();
+
+                        indices.forEach(idx => {
+                            let r = RANKS[idx];
+                            // Si QuinteFlush : Même couleur. Si Suite : Couleurs mélangées.
+                            let s = (combo === 'QuinteFlush') ? targetSuit : getMixedSuit(idx);
+                            cards.push({r: r, s: s});
+                        });
+
                     } else {
-                        // Si le joueur n'a pas précisé la hauteur ("Une Suite"), on met des dos
+                        // Si pas de hauteur précisée
                         addBack(5);
                     }
                 }
@@ -1240,8 +1431,42 @@
             });
         }
         function closeModal() { document.getElementById('modal-result').style.display='none'; }
+
+        // --- GESTION DES RACCOURCIS CLAVIER (EMOTES) ---
+        document.addEventListener('keydown', (e) => {
+            // Sécurité : On ne déclenche rien si l'utilisateur tape son pseudo ou choisit une carte
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+            // Mapping des touches 1, 2, 3, 4, 5 (Pavé numérique ou haut du clavier)
+            switch(e.key) {
+                case '1': case '&': // Le '&' gère le '1' sur les claviers AZERTY sans Verr. Maj
+                    sendEmote('gelo'); 
+                    break;
+                case '2': case 'é': 
+                    sendEmote('max'); 
+                    break;
+                case '3': case '"': 
+                    sendEmote('ciliem'); 
+                    break;
+                case '4': case "'": 
+                    sendEmote('matou'); 
+                    break;
+                case '5': case '(': 
+                    sendEmote('germinal'); 
+                    break;
+            }
+        });
+
+        function moveTorch(x, y) {
+            document.documentElement.style.setProperty('--cursor-x', x + 'px');
+            document.documentElement.style.setProperty('--cursor-y', y + 'px');
+        }
+
+        document.addEventListener('mousemove', e => moveTorch(e.clientX, e.clientY));
+        document.addEventListener('touchmove', e => {
+            moveTorch(e.touches[0].clientX, e.touches[0].clientY);
+        });
+
     </script>
 </body>
-
 </html>
-
