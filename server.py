@@ -89,6 +89,9 @@ class GameServer:
         self.game_started = False
         self.current_player_idx = 0
         self.is_blind = False
+        self.is_double_penalty = False
+        self.timer_task = None
+        self.is_timer_mode = False
         self.last_declarer_idx = None
         self.current_claim = None
         self.round_num = 0
@@ -421,6 +424,8 @@ class GameServer:
                 "type": "STATE_UPDATE", "round": self.round_num,
                 "effect": extra_effect,
                 "is_blind": self.is_blind,
+                "is_timer_mode": self.is_timer_mode,
+                "is_double_penalty": self.is_double_penalty,
                 "current_player_idx": self.current_player_idx, "last_declarer_idx": self.last_declarer_idx,
                 "claim": claim_dict, "players": public_players,
                 "my_hand": ws.player_data['hand'], "my_idx": i, "log": msg_log, "new_round": new_round
@@ -438,8 +443,12 @@ class GameServer:
             if g in self.clients:
                 self.clients.remove(g)
         # ------------------------
-        
-        self.is_blind = (random.random() < 0.05)
+        if self.timer_task: self.timer_task.cancel()
+        rand = random.random()
+        self.is_blind = (rand < 0.05)
+        self.is_double_penalty = (rand > 0.05 and rand < 0.15)
+        # 10% de chance pour le mode Timer (si pas d'autre mode)
+        self.is_timer_mode = (not self.is_blind and not self.is_double_penalty and rand < 0.25)
         self.round_num += 1; self.current_claim = None; self.last_declarer_idx = None
         self.deck = self.make_deck(); random.shuffle(self.deck)
         
@@ -459,10 +468,19 @@ class GameServer:
         # 3. On ne tente la Révolution QUE SI le mode Blind n'est PAS actif
         if not self.is_blind:
             # 10% de chance, et il faut au moins 2 joueurs
-            is_revolution = (random.random() < 0.10) and (len(self.clients) > 1)
+            is_revolution = (random.random() < 0.15) and (len(self.clients) > 1)
             
         msg_log = None
+        effect_name = None
+        
+        if self.is_double_penalty:
+            effect_name = "DOUBLE_PENALTY"
+        elif self.is_timer_mode: # <--- NOUVEAU
+            effect_name = "TIMER"
+            msg_log = "⏳ BLITZ ! 7 secondes pour jouer !"
+        
         if is_revolution:
+            effect_name="REVOLUTION"
             msg_log = "🌪️ RÉVOLUTION ! Les mains ont tourné !"
             # On décale les mains : Le joueur 1 prend la main du 2, le 2 du 3, etc.
             # On récupère juste les listes de cartes
@@ -474,7 +492,8 @@ class GameServer:
             for i, ws in enumerate(active):
                 ws.player_data['hand'] = rotated_hands[i]
         self.check_player_index()
-        asyncio.create_task(self.send_game_state(new_round=True, msg_log=msg_log, extra_effect="REVOLUTION" if is_revolution else None))
+        
+        asyncio.create_task(self.send_game_state(new_round=True, msg_log=msg_log, extra_effect=effect_name))
 
     def check_player_index(self):
         clients_list = list(self.clients)
@@ -485,6 +504,47 @@ class GameServer:
             if not clients_list[self.current_player_idx].player_data['eliminated']: return
             self.current_player_idx = (self.current_player_idx + 1) % len(clients_list)
             attempts += 1
+    
+    def reset_timer(self):
+        if self.timer_task: self.timer_task.cancel()
+        if self.is_timer_mode and self.game_started:
+            # On lance le compte à rebours pour le joueur actuel
+            self.timer_task = asyncio.create_task(self.run_timer(self.current_player_idx))
+            
+    async def run_timer(self, player_idx):
+        try:
+            # Attendre 7 secondes (+ petite marge réseau)
+            await asyncio.sleep(7.5) 
+            
+            # Vérification : est-ce toujours le tour de ce joueur ?
+            if self.current_player_idx == player_idx and self.game_started:
+                # TEMPS ÉCOULÉ !
+                clients_list = list(self.clients)
+                loser_ws = clients_list[player_idx]
+                
+                loser_ws.player_data['quota'] += 1
+                msg = f"⏳ {loser_ws.player_data['name']} a été trop lent !"
+                
+                if loser_ws.player_data['quota'] > MAX_LIVES:
+                    loser_ws.player_data['eliminated'] = True
+                    msg += " ÉLIMINÉ !"
+                
+                # On envoie un SHOWDOWN spécial "TIMEOUT"
+                await self.broadcast({
+                    "type": "SHOWDOWN",
+                    "title": "TEMPS ÉCOULÉ !",
+                    "is_truth": False, # Son d'échec
+                    "detail": msg,
+                    "all_cards": [], # On ne montre pas forcément les cartes sur un timeout
+                    "stats": ["Le sablier ne pardonne pas."]
+                })
+                
+                self.check_player_index()
+                await asyncio.sleep(4)
+                self.start_new_round()
+                
+        except asyncio.CancelledError:
+            pass # Le timer a été annulé car le joueur a joué, tout va bien.
 
     async def handler(self, websocket):
         # --- MODIFICATION : Blocage si la partie est déjà lancée ---
@@ -502,6 +562,13 @@ class GameServer:
                 if mtype == 'LOGIN':
                     websocket.player_data['name'] = data.get('name')
                     await self.broadcast_lobby()
+                
+                elif mtype == 'CHAT':
+                    p_name = websocket.player_data.get('name', 'Inconnu')
+                    msg_content = data.get('content', '')
+                    # On évite les messages vides
+                    if msg_content.strip():
+                        await self.broadcast({"type": "CHAT_MSG", "author": p_name, "text": msg_content})
                 
                 elif mtype == 'EMOTE':
                     clients_list = list(self.clients) 
@@ -542,11 +609,13 @@ class GameServer:
                             self.current_player_idx = (self.current_player_idx + 1) % len(clients_list)
                             self.check_player_index()
                             await self.send_game_state(msg_log=f"{websocket.player_data['name']}: {new_claim}")
+                            if self.is_timer_mode: self.reset_timer()
                         else:
                             await self.send_to(websocket, {"type": "ERROR", "msg": "Enchère insuffisante ! Vous devez monter."})
 
                     elif mtype == 'CALL':
                         # Sécurité : Impossible d'appeler Menteur si personne n'a joué (cas où le déclarant quitte)
+                        if self.timer_task: self.timer_task.cancel()
                         if self.last_declarer_idx is None:
                             await self.send_to(websocket, {"type": "ERROR", "msg": "Impossible, le joueur précédent est parti. Veuillez enchérir."})
                             continue
@@ -555,7 +624,9 @@ class GameServer:
                         declarer_ws = clients_list[self.last_declarer_idx]
                         loser_ws = websocket if exists else declarer_ws
                         
-                        loser_ws.player_data['quota'] += 1
+                        damage = 2 if self.is_double_penalty else 1
+                        loser_ws.player_data['quota'] += damage
+                       
                         msg = f"{loser_ws.player_data['name']} perd une vie !"
                         if loser_ws.player_data['quota'] > MAX_LIVES:
                             loser_ws.player_data['eliminated'] = True; msg += " ÉLIMINÉ !"
@@ -578,19 +649,17 @@ class GameServer:
                         self.check_player_index()
                         await asyncio.sleep(6)
                         self.start_new_round()
+                        
+                    elif mtype == 'SPOT_ON':
+                         if self.timer_task: self.timer_task.cancel() # <--- STOP TIMER
+                         # ... (Reste logique SPOT_ON inchangé) ...
 
         except Exception as e: print(f"Erreur: {e}")
         finally: await self.unregister(websocket)
 
 async def main():
-    # Render nous donne le port via la variable d'environnement "PORT"
-    # Si elle n'existe pas (en local), on utilise 5555
-    port = int(os.environ.get("PORT", 5555))
-    print(f"Démarrage du serveur sur le port {port}")
-
-    async with websockets.serve(GameServer().handler, "0.0.0.0", port):
+    async with websockets.serve(GameServer().handler, "0.0.0.0", 5555):
         await asyncio.Future()
 
 if __name__ == "__main__":
-
     asyncio.run(main())
