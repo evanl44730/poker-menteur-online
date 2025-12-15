@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Poker Menteur - Mobile Ready</title>
+    <title>DOUGLAS</title>
     <style>
         :root { --bg: #1e1e24; --felt: #27ae60; --gold: #f1c40f; --panel: #2d3436; --red: #e74c3c; }
         body { 
@@ -19,11 +19,93 @@
             flex-direction: column; 
         }
 
+        /* --- MODE TIMER (Beige & Sablier) --- */
+        
+        /* 1. Fond Beige Sable */
+        body.timer-mode #game-view {
+            background: radial-gradient(circle, #e8dcb5 20%, #b0a17a 90%) !important;
+            box-shadow: inset 0 0 50px #5e4b35;
+            border: 4px solid #8c7b50;
+        }
+        
+        /* 2. Sablier en fond */
+        .timer-watermark {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20rem;
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+            display: none;
+            filter: sepia(1); /* Teinte sépia pour coller au beige */
+        }
+        
+        /* Animation de rotation du sablier (retournement) */
+        @keyframes hourGlassSpin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            45% { transform: translate(-50%, -50%) rotate(180deg); }
+            55% { transform: translate(-50%, -50%) rotate(180deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        body.timer-mode .timer-watermark {
+            display: block;
+            animation: hourGlassSpin 7s infinite ease-in-out; /* 7s comme le timer ! */
+        }
+        
+        /* Couleur spécifique pour le texte dans ce mode (Marron foncé) */
+        body.timer-mode .claim-text { color: #5e4b35 !important; }
+        
+        /* Style popup beige */
+        .pop-beige #mode-title { color: #f1c40f !important; text-shadow: 0 0 20px #d35400 !important; }
+
         /* --- MODE BLIND (Lampe Torche) --- */
         :root {
             --cursor-x: 50vw;
             --cursor-y: 50vh;
         }
+
+        /* 1. Applique le fond aux deux écrans : Login et Lobby */
+#screen-login, #screen-lobby {
+    /* Image + Voile noir sombre (pour bien lire le texte) */
+    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.85)), url('assets/background.png');
+    
+    /* L'image s'adapte à tout l'écran */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    
+    /* Fixe l'image pour éviter qu'elle bouge sur mobile (optionnel) */
+    background-attachment: fixed;
+    
+    color: white;
+}
+
+/* 2. Amélioration de la boîte centrale (Effet Verre) */
+/* Cela s'appliquera automatiquement à la boîte de login ET à celle du lobby */
+.login-box {
+    /* Fond gris foncé mais transparent */
+    background: rgba(45, 52, 54, 0.85) !important; 
+    
+    /* Le flou magique derrière la boîte */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); /* Pour Safari */
+    
+    /* Bordure subtile pour détacher du fond */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    
+    /* Ombre portée pour le relief */
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    
+    /* S'assure que le texte est bien centré et lisible */
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+}
+
+
 
         /* Le calque noir qui recouvre tout */
         #blind-overlay {
@@ -115,6 +197,46 @@
         /* On garde aussi la petite animation de rotation d'avant si vous l'aviez mise */
         body.revolution-active .main-container {
              animation: spinPage 1s ease-in-out;
+        }
+
+        /* --- MODE MORT SUBITE (Double Peine) --- */
+        
+        /* 1. Fond Rouge Sang */
+        body.double-penalty-mode #game-view {
+            background: radial-gradient(circle, #7b0d0d 20%, #2c0404 90%) !important;
+            box-shadow: inset 0 0 100px #000;
+            border: 4px solid #c0392b; /* Bordure rouge */
+        }
+
+        /* 2. Tête de mort en fond */
+        .skull-watermark {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 25rem; /* Énorme */
+            opacity: 0.1; /* Très subtil */
+            pointer-events: none;
+            z-index: 0;
+            display: none;
+            filter: grayscale(100%);
+        }
+        
+        /* Animation qui fait respirer la tête de mort */
+        @keyframes skullPulse {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.2; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
+        }
+
+        body.double-penalty-mode .skull-watermark {
+            display: block;
+            animation: skullPulse 4s infinite ease-in-out;
+        }
+        
+        /* Petit détail : changer la couleur du texte info en rouge */
+        body.double-penalty-mode .claim-text {
+            color: #e74c3c !important;
+            text-shadow: 0 0 10px black;
         }
 
         /* --- MODE MATCH POINT (DANGER) --- */
@@ -435,14 +557,82 @@
             margin-left: -5px; /* On écarte un peu les cartes au survol */
         }
 
-        /* --- 1. LOGS --- */
-        .log-panel {
-            position: absolute; top: 10px; right: 10px; width: 200px; max-height: 150px;
-            overflow-y: auto; background: rgba(0,0,0,0.5); font-size: 0.8rem;
-            padding: 5px; border-radius: 4px; pointer-events: none; z-index: 50;
-        }
-        .log-item { margin-bottom: 2px; text-shadow: 1px 1px 0 #000; }
-        .log-highlight { color: var(--gold); font-weight: bold; }
+        /* --- CHAT SYSTEM (Remplace les Logs) --- */
+        /* --- CHAT SYSTEM (Rétractable) --- */
+    .chat-container {
+        position: absolute;
+        top: 10px; right: 10px;
+        width: 220px;
+        z-index: 80;
+        display: flex; flex-direction: column;
+        transition: all 0.3s ease; /* Animation fluide */
+    }
+
+    /* L'en-tête avec la flèche */
+    .chat-header {
+        background: rgba(0,0,0,0.8);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 6px 6px 0 0; /* Arrondi seulement en haut */
+        cursor: pointer;
+        display: flex; justify-content: space-between; align-items: center;
+        border: 1px solid #555;
+    }
+    
+    .chat-header:hover { background: rgba(50,50,50,0.9); }
+
+    /* Le corps du chat (Messages + Input) */
+    .chat-body-wrapper {
+        background: rgba(0,0,0,0.5);
+        border-radius: 0 0 6px 6px;
+        overflow: hidden; /* Important pour l'animation */
+        max-height: 200px; /* Hauteur max ouvert */
+        transition: max-height 0.3s ease, opacity 0.3s ease;
+        opacity: 1;
+        display: flex; flex-direction: column; gap: 5px; padding: 5px;
+    }
+
+    /* --- ÉTAT FERMÉ --- */
+    .chat-container.closed .chat-body-wrapper {
+        max-height: 0; /* On réduit la hauteur à 0 */
+        padding: 0;    /* On enlève le padding */
+        opacity: 0;    /* On rend transparent */
+        border: none;
+    }
+    
+    .chat-container.closed .chat-header {
+        border-radius: 6px; /* Arrondi complet quand fermé */
+        width: 40px; /* Devient tout petit (juste l'icône) */
+        margin-left: auto; /* Aligne le bouton à droite */
+    }
+
+    .arrow-icon { transition: transform 0.3s; font-size: 0.8rem; }
+    .chat-container.closed .arrow-icon { transform: rotate(-90deg); } /* Flèche tourne */
+    
+    .chat-title { font-size: 0.8rem; font-weight:bold; }
+    .chat-container.closed .chat-title { display: none; } /* Cache le titre quand fermé */
+
+    /* Indicateur de nouveau message (Pastille rouge) */
+    .new-msg-dot {
+        width: 10px; height: 10px; background: #e74c3c;
+        border-radius: 50%; display: none;
+        box-shadow: 0 0 5px red;
+    }
+    .chat-container.closed.has-new .new-msg-dot { display: block; }
+
+    /* RESTE DU CSS CHAT (Interne) */
+    .chat-messages {
+        max-height: 150px; overflow-y: auto;
+        display: flex; flex-direction: column-reverse;
+        pointer-events: none;
+    }
+    .chat-input-row { display: flex; gap: 5px; pointer-events: auto; }
+    .chat-input-row input {
+        margin: 0; padding: 5px; font-size: 0.8rem;
+        background: rgba(0,0,0,0.8); border: 1px solid #555; color: white; flex: 1;
+    }
+    .chat-msg { margin-bottom: 3px; text-shadow: 1px 1px 0 #000; word-wrap: break-word; }
+    .chat-author { color: var(--gold); font-weight: bold; margin-right: 5px; }
 
         /* --- 2. SHAKE EFFECT --- */
         @keyframes shake {
@@ -461,54 +651,69 @@
         .shake-screen { animation: shake 0.5s; }
 
         /* --- 3. EMOJIS --- */
-        /* --- BARRE D'EMOJIS --- */
-        .emoji-bar {
-            position: absolute; 
-            bottom: 30vh; /* Ajustez la hauteur si besoin */
-            right: 10px; 
-            z-index: 60;
-            display: flex; 
-            flex-direction: column; 
-            gap: 10px;
-        }
+        /* --- BARRE D'EMOTES (SCROLLABLE) --- */
+    .emoji-bar {
+        position: absolute; 
+        left: 10px;
+        /* On la centre verticalement ou on la place où on veut */
+        top: 20vh; 
+        z-index: 60;
+        
+        /* C'est ici que la magie opère */
+        display: flex; 
+        flex-direction: column; 
+        align-items: center;
+        gap: 10px;
+        
+        /* Hauteur fixe ou max (ajustez selon votre besoin) */
+        max-height: 200px; 
+        width: 60px; /* Un peu plus large que les boutons */
+        
+        /* Permet le scroll si ça dépasse */
+        overflow-y: auto; 
+        overflow-x: hidden;
+        
+        /* Design de la barre (Fond unifié) */
+        background: rgba(0, 0, 0, 0.4);
+        padding: 10px 0; /* Espace en haut et en bas */
+        border-radius: 30px; /* Forme de pilule allongée */
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(2px); /* Petit effet de flou sympa */
 
-        /* LE BOUTON ROND (CONTENEUR) */
-        .emoji-btn {
-            width: 50px;  /* Taille fixe du cercle */
-            height: 50px;
-            border-radius: 50%; /* Rend le bouton rond */
-            
-            background: rgba(0,0,0,0.3); /* Fond sombre semi-transparent */
-            border: 2px solid rgba(255,255,255,0.2); /* Bordure subtile */
-            
-            /* CENTRAGE PARFAIT & ROGNAGE */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden; /* C'est ICI la magie : ça coupe tout ce qui dépasse du rond */
-            padding: 0;
-            
-            cursor: pointer;
-            transition: transform 0.2s ease;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
+        /* Cache la barre de scroll (Chrome/Safari/Opera) */
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+    
+    /* Cache la barre de scroll (Suite) */
+    .emoji-bar::-webkit-scrollbar {
+        display: none;
+    }
 
-        .emoji-btn:hover { 
-            transform: scale(1.15); 
-            border-color: var(--gold); /* Bordure dorée au survol */
-            background: rgba(255,255,255,0.1);
-        }
+    /* LE BOUTON ROND */
+    .emoji-btn {
+        width: 45px;  
+        height: 45px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.1); /* Fond léger */
+        border: 2px solid transparent; /* Prépare la bordure */
+        flex-shrink: 0; /* Empêche l'écrasement des boutons */
+        
+        display: flex; justify-content: center; align-items: center;
+        overflow: hidden; padding: 0;
+        cursor: pointer;
+        transition: transform 0.2s, background 0.2s;
+    }
 
-        /* L'IMAGE À L'INTÉRIEUR */
-        .emoji-btn img {
-            width: 100%;
-            height: 100%;
-            /* 'cover' va zoomer pour remplir tout le cercle (idéal pour des visages/photos carrées) */
-            /* Si vous préférez voir l'image en entier avec des bords vides, mettez 'contain' */
-            object-fit: cover; 
-            pointer-events: none;
-            display: block;
-        }
+    .emoji-btn:hover { 
+        transform: scale(1.1); 
+        background: rgba(255,255,255,0.3);
+        border-color: var(--gold);
+    }
+
+    .emoji-btn img {
+        width: 100%; height: 100%; object-fit: cover; pointer-events: none;
+    }
         
         .floating-emoji {
             position: absolute;
@@ -551,17 +756,91 @@
             height: 100%; /* Pour qu'ils aient la même hauteur visuelle */
         }
 
+        /* --- POPUP ANNONCE MODE --- */
+        #mode-announcement {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 2000; /* Au-dessus de tout, même du chat */
+            pointer-events: none; /* Laisse passer les clics au travers */
+            
+            background: rgba(0,0,0,0.6); /* Assombrit légèrement l'écran */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(2px);
+        }
+
+        #mode-announcement.active {
+            opacity: 1;
+        }
+
+        #mode-icon { font-size: 5rem; margin-bottom: 10px; transform: scale(0); transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #mode-title { font-size: 3rem; font-weight: 900; color: white; text-transform: uppercase; text-shadow: 0 5px 15px rgba(0,0,0,0.8); transform: translateY(50px); opacity: 0; transition: all 0.5s ease 0.1s; text-align: center;}
+        #mode-sub { font-size: 1.2rem; color: #ddd; font-style: italic; transform: translateY(20px); opacity: 0; transition: all 0.5s ease 0.2s; text-align: center;}
+
+        /* Animation d'entrée quand la classe active est là */
+        #mode-announcement.active #mode-icon { transform: scale(1); }
+        #mode-announcement.active #mode-title { transform: translateY(0); opacity: 1; }
+        #mode-announcement.active #mode-sub { transform: translateY(0); opacity: 1; }
+
+        /* Couleurs spécifiques dynamiques via JS */
+        .pop-red #mode-title { color: #e74c3c !important; text-shadow: 0 0 20px #c0392b !important; }
+        .pop-purple #mode-title { color: #9b59b6 !important; text-shadow: 0 0 20px #8e44ad !important; }
+
+        #timer-bar {
+            position: fixed;
+            top: 0; left: 0;
+            height: 10px; /* Épaisseur de la barre */
+            width: 0;     /* Caché par défaut */
+            z-index: 3000; /* Au-dessus de tout, même des popups */
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* L'animation qui se lance à chaque tour */
+        .timer-anim {
+            /* 7.5s pour correspondre au serveur (7s + petite marge) */
+            animation: burnFuse 7.5s linear forwards; 
+        }
+
+        @keyframes burnFuse {
+            0% { 
+                width: 100%; 
+                background: #2ecc71; /* Vert */
+                box-shadow: 0 0 15px #2ecc71;
+            }
+            50% { 
+                background: #f1c40f; /* Jaune */
+                box-shadow: 0 0 15px #f1c40f;
+            }
+            85% {
+                background: #e74c3c; /* Rouge */
+                box-shadow: 0 0 20px #e74c3c;
+            }
+            100% { 
+                width: 0%; 
+                background: #c0392b; /* Rouge foncé */
+            }
+        }
+
     </style>
 </head>
 <body>
 
+    <div id="mode-announcement">
+        <div id="mode-icon">⚠️</div>
+        <div id="mode-title">TITRE DU MODE</div>
+        <div id="mode-sub">Description courte</div>
+    </div>
+    <div id="timer-bar"></div>
     <div id="blind-overlay"></div>
     <div id="danger-vignette"></div>
     <div id="blind-overlay"></div>
     <div class="blind-warning">⚠️ PANNE DE COURANT ⚠️</div>
     <div id="screen-login" class="screen active">
         <div class="login-box">
-            <h1>POKER MENTEUR</h1>
+            <h1>DOUGLAS</h1>
             <input type="text" id="username" placeholder="Votre Pseudo" value="Joueur">
             <button onclick="connect()">JOUER</button>
         </div>
@@ -582,6 +861,9 @@
     </button>
         <div id="game-view">
             <div class="revolution-watermark">♻️</div>
+            <div class="skull-watermark">💀</div>
+            <div class="timer-watermark">⏳</div>
+            <div id="players-container"></div>
             <div id="players-container"></div>
             <div class="center-area">
                 <div id="claim-text" class="claim-text">...</div>
@@ -589,8 +871,21 @@
             </div>
         </div>
 
-        <div id="game-logs" class="log-panel"></div>
-            <div class="emoji-bar">
+        <div id="ui-chat" class="chat-container closed" style="display:none;">
+    <div class="chat-header" onclick="toggleChat()">
+        <span class="new-msg-dot"></span> <span class="chat-title">CHAT</span>
+        <span class="arrow-icon">▼</span>
+    </div>
+
+    <div class="chat-body-wrapper">
+        <div id="chat-history" class="chat-messages"></div>
+        <div class="chat-input-row">
+            <input type="text" id="chat-input" placeholder="Message..." maxlength="50" onkeydown="if(event.key==='Enter') sendChat()">
+            <button onclick="sendChat()" style="width:auto; padding:5px 10px;">➤</button>
+        </div>
+    </div>
+</div>
+            <div class="emoji-bar" title="Faites défiler pour voir plus">
         <button class="emoji-btn" onclick="sendEmote('gelo')">
             <img src="assets/emotes/gelo.png" alt="gelo">
         </button>
@@ -768,13 +1063,7 @@
             }
         }
 
-        function addLog(text, highlight=false) {
-            const div = document.getElementById('game-logs');
-            const p = document.createElement('div');
-            p.className = 'log-item' + (highlight ? ' log-highlight' : '');
-            p.innerText = text;
-            div.prepend(p); // Le plus récent en haut
-    }
+        
 
         function sendEmote(emoji) {
             send({type: 'EMOTE', content: emoji});
@@ -820,6 +1109,7 @@
         }
 
         let ws, myIdx, gameState, handHidden = false;
+        let lastTurnIdx = -1; // <--- AJOUTEZ CETTE VARIABLE
 
         // INIT SELECTS (Avec option vide pour le "vague")
         function initSelects(prefix, isSec=false) {
@@ -876,6 +1166,26 @@
             }
         }
 
+        function restartTimerAnim() {
+        const bar = document.getElementById('timer-bar');
+        
+        // 1. On retire la classe pour stopper l'animation en cours
+        bar.classList.remove('timer-anim');
+        
+        // 2. Astuce magique : On force le navigateur à recalculer le style (Reflow)
+        // Sans ça, il ne verrait pas qu'on a enlevé puis remis la classe instantanément
+        void bar.offsetWidth; 
+        
+        // 3. On remet la classe pour redémarrer l'animation du début
+        bar.classList.add('timer-anim');
+    }
+
+    function stopTimerAnim() {
+        const bar = document.getElementById('timer-bar');
+        bar.classList.remove('timer-anim');
+        bar.style.width = '0'; // On la cache
+    }
+
         function resetGameInputs() {
             // 1. Remettre la Main 1 sur "Carte" et vider les valeurs
             document.getElementById('c1-combo').value = 'Carte';
@@ -915,19 +1225,12 @@
         // --- RESEAU ---
         function connect() {
             unlockAudioContext();
-            const user = document.getElementById('username').value;
-            
-            // REMPLACE L'ADRESSE CI-DESSOUS PAR CELLE DE RENDER
-            // Exemple : const address = 'wss://mon-poker-serveur.onrender.com';
-            const address = 'wss://poker-menteur-online.onrender.com'; 
-        
-            console.log("Connexion à " + address);
-            ws = new WebSocket(address);
-            
-            ws.onopen = () => ws.send(JSON.stringify({type: 'LOGIN', name: user}));
+            const host = location.hostname || 'localhost';
+            ws = new WebSocket('ws://' + host + ':5555');
+            ws.onopen = () => ws.send(JSON.stringify({type: 'LOGIN', name: document.getElementById('username').value}));
             ws.onmessage = e => handle(JSON.parse(e.data));
-            ws.onerror = () => alert("Le serveur démarre... Réessaie dans 30 secondes !");
-}
+            ws.onerror = () => alert("Impossible de se connecter au serveur WS");
+        }
         function send(d) { if(ws) ws.send(JSON.stringify(d)); }
 
         function handle(msg) {
@@ -941,6 +1244,7 @@
             // Sauvegarde de l'ancien état pour comparaison
             const oldDeclarer = gameState ? gameState.last_declarer_idx : null;
             const oldTurn = gameState ? gameState.current_player_idx : null;
+            document.getElementById('ui-chat').style.display = 'flex';
             
             // Mise à jour de l'état
             gameState = msg; 
@@ -950,12 +1254,64 @@
                  document.body.classList.remove('revolution-active');
             }
 
+            if (msg.new_round) {
+                
+                // Priorité 1 : Mort Subite (Double Peine)
+                if (msg.is_double_penalty) {
+                    triggerModePopup("MORT SUBITE", "Les dégâts sont doublés ! (x2)", "💀", "pop-red");
+                    playSfx('matou'); // Son dramatique
+                }
+                else if (msg.is_timer_mode) {
+                    triggerModePopup("CHRONO", "7 secondes pour jouer !", "⏳", "pop-beige");
+                    playSfx('bid'); // Ou un son de tic-tac si vous en avez un
+                }
+                // Priorité 2 : Révolution
+                else if (msg.effect === 'REVOLUTION') {
+                    triggerModePopup("RÉVOLUTION", "Les mains ont tourné !", "🔄", "pop-purple");
+                    playSfx('germinal'); // Son mystique
+                }
+                // Optionnel : Blind Mode (si vous voulez aussi l'annoncer en gros)
+                else if (msg.is_blind) {
+                    triggerModePopup("PANNE DE COURANT", "On joue à l'aveugle...", "🔦", "");
+                    playSfx('blind');
+                }
+            }
+
+            if (msg.is_timer_mode) {
+                // Si c'est une nouvelle manche OU que le joueur actif a changé
+                if (msg.new_round || msg.current_player_idx !== lastTurnIdx) {
+                    restartTimerAnim();
+                    lastTurnIdx = msg.current_player_idx;
+                }
+            } else {
+                // Si on n'est pas en mode timer, on s'assure que la barre est cachée
+                stopTimerAnim();
+            }
+
+            if (msg.is_timer_mode) {
+                document.body.classList.add('timer-mode');
+            } else {
+                document.body.classList.remove('timer-mode');
+            }
+
+            if (msg.is_double_penalty) {
+                document.body.classList.add('double-penalty-mode');
+                
+                // Son d'ambiance si nouvelle manche (Optionnel : réutiliser un son effrayant)
+                if (msg.new_round) {
+                    playSfx('matou'); // ou un autre son grave
+                    showFeedback(myIdx, "💀 MORT SUBITE (+2)", "#e74c3c");
+                }
+            } else {
+                document.body.classList.remove('double-penalty-mode');
+            }
+
             if (msg.effect === 'REVOLUTION') {
                 document.body.classList.add('revolution-active');
                 
                 // Petit feedback sonore et visuel immédiat (optionnel)
                 if(msg.new_round) { // Pour ne le jouer qu'une fois au début
-                    playSfx('revolution'); 
+                    playSfx('germinal'); 
                     showFeedback(myIdx, "🔄 RÉVOLUTION !", "#9b59b6");
                 }
             }
@@ -964,7 +1320,6 @@
                 
                 // On joue le son UNIQUEMENT si c'est le tout début de la manche
                 if (msg.new_round) {
-                    addLog("⚠️ MODE AVEUGLE ACTIVÉ !", true);
                     playSfx('blind'); // <--- AJOUTEZ ICI
                 }
             } else {
@@ -982,13 +1337,9 @@
                 resetGameInputs();
                 showFeedback(gameState.current_player_idx, "C'est parti !", "#f1c40f");
                 playSfx('start');
-                addLog("--- NOUVELLE MANCHE ---", true);
             }
             
             // 2. Affichage du Log (Texte)
-            if (msg.log) {
-                addLog(msg.log);
-            }
 
             // 3. Son d'enchère (Jeton)
             // On joue le son si le "déclarant" a changé (quelqu'un a joué)
@@ -1007,6 +1358,21 @@
 
             render();
         } 
+
+        else if(msg.type === 'CHAT_MSG') {
+            const div = document.getElementById('chat-history');
+            const line = document.createElement('div');
+            line.className = 'chat-msg';
+            line.innerHTML = `<span class="chat-author">${msg.author}:</span> ${msg.text.replace(/</g, "&lt;")}`;
+            div.prepend(line); 
+            
+            // --- AJOUT : GESTION NOTIFICATION ---
+            const chat = document.getElementById('ui-chat');
+            // Si le chat est fermé, on ajoute la classe "has-new" pour afficher le point rouge
+            if (chat.classList.contains('closed')) {
+                chat.classList.add('has-new');
+            } 
+            }
         else if(msg.type === 'ERROR') {
             alert(msg.msg);
         } 
@@ -1024,7 +1390,6 @@
             document.body.classList.add('shake-screen');
             setTimeout(() => document.body.classList.remove('shake-screen'), 500);
             
-            addLog(msg.title + " " + msg.detail, true);
             showResult(msg);
         } 
         else if(msg.type === 'GAME_OVER') {
@@ -1043,6 +1408,7 @@
             }
         }
     }
+
 
         // --- RENDU ---
         function getSrc(r, s) { 
@@ -1158,6 +1524,15 @@
             if (currentPlayer && currentPlayer.quota === 6 && !currentPlayer.eliminated) {
                 playSfx('heartbeat'); // Petit effet sonore aléatoire d'ambiance
             }
+        }
+
+        function sendChat() {
+            const inp = document.getElementById('chat-input');
+            const txt = inp.value.trim();
+            if(!txt) return;
+            send({type: 'CHAT', content: txt});
+            inp.value = '';
+            inp.focus(); // Garde le focus pour continuer à écrire
         }
 
         // --- LOGIQUE VISUELLE AVANCÉE (Gère les infos partielles) ---
@@ -1432,14 +1807,33 @@
         }
         function closeModal() { document.getElementById('modal-result').style.display='none'; }
 
+        function toggleChat() {
+            const chat = document.getElementById('ui-chat');
+            chat.classList.toggle('closed');
+            
+            // Si on ouvre, on enlève la notification de nouveau message
+            if (!chat.classList.contains('closed')) {
+                chat.classList.remove('has-new');
+            }
+        }
+
         // --- GESTION DES RACCOURCIS CLAVIER (EMOTES) ---
+        // --- GESTION DES RACCOURCIS CLAVIER ---
         document.addEventListener('keydown', (e) => {
-            // Sécurité : On ne déclenche rien si l'utilisateur tape son pseudo ou choisit une carte
+            // Sécurité : On ne déclenche rien si l'utilisateur écrit dans le chat ou un input
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
-            // Mapping des touches 1, 2, 3, 4, 5 (Pavé numérique ou haut du clavier)
             switch(e.key) {
-                case '1': case '&': // Le '&' gère le '1' sur les claviers AZERTY sans Verr. Maj
+                // --- AJOUT ICI : Espace ou H pour cacher/montrer ses cartes ---
+                case ' ':  // Barre d'Espace
+                case 's':  // Touche S
+                case 'S':
+                    e.preventDefault(); // Empêche le scroll de la page avec Espace
+                    toggleHand(); 
+                    break;
+                // -------------------------------------------------------------
+
+                case '1': case '&': 
                     sendEmote('gelo'); 
                     break;
                 case '2': case 'é': 
@@ -1466,6 +1860,30 @@
         document.addEventListener('touchmove', e => {
             moveTorch(e.touches[0].clientX, e.touches[0].clientY);
         });
+
+        function triggerModePopup(title, sub, icon, colorClass) {
+            const container = document.getElementById('mode-announcement');
+            const elTitle = document.getElementById('mode-title');
+            const elSub = document.getElementById('mode-sub');
+            const elIcon = document.getElementById('mode-icon');
+            
+            // 1. Mise à jour du contenu
+            elTitle.innerText = title;
+            elSub.innerText = sub;
+            elIcon.innerText = icon;
+            
+            // 2. Gestion des couleurs (reset puis ajout)
+            container.className = ''; 
+            if (colorClass) container.classList.add(colorClass);
+            
+            // 3. Affichage
+            container.classList.add('active');
+            
+            // 4. Masquage automatique après 2.5 secondes
+            setTimeout(() => {
+                container.classList.remove('active');
+            }, 2500);
+        }
 
     </script>
 </body>
