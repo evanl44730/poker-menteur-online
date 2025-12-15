@@ -658,8 +658,14 @@ class GameServer:
         finally: await self.unregister(websocket)
 
 async def main():
-    async with websockets.serve(GameServer().handler, "0.0.0.0", 5555):
+    # Render nous donne le port via la variable d'environnement "PORT"
+    # Si elle n'existe pas (en local), on utilise 5555
+    port = int(os.environ.get("PORT", 5555))
+    print(f"Démarrage du serveur sur le port {port}")
+
+    async with websockets.serve(GameServer().handler, "0.0.0.0", port):
         await asyncio.Future()
 
 if __name__ == "__main__":
     asyncio.run(main())
+
