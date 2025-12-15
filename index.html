@@ -50,7 +50,7 @@
         }
         body.timer-mode .timer-watermark {
             display: block;
-            animation: hourGlassSpin 7s infinite ease-in-out; /* 7s comme le timer ! */
+            animation: hourGlassSpin 10s infinite ease-in-out; /* 10s comme le timer ! */
         }
         
         /* Couleur spécifique pour le texte dans ce mode (Marron foncé) */
@@ -115,7 +115,7 @@
             z-index: 900; /* Au dessus de tout sauf des modales */
             
             /* L'effet lampe torche : Un cercle transparent au milieu d'un fond noir */
-            background: radial-gradient(circle 300px at var(--cursor-x) var(--cursor-y), 
+            background: radial-gradient(circle 500px at var(--cursor-x) var(--cursor-y), 
                         transparent 0%, 
                         rgba(0,0,0,0.5) 30%, 
                         black 70%);
@@ -824,6 +824,43 @@
             }
         }
 
+        /* --- TOAST NOTIFICATION (Message reçu quand fermé) --- */
+        #toast-container {
+            position: absolute;
+            top: 15px; 
+            right: 60px; /* Juste à gauche du bouton chat fermé */
+            z-index: 2500;
+            display: flex; flex-direction: column; gap: 5px;
+            pointer-events: none; /* Laisse passer les clics */
+        }
+
+        .chat-toast {
+            background: rgba(20, 20, 20, 0.95);
+            border: 1px solid #444;
+            border-left: 4px solid var(--gold); /* Bordure dorée stylée */
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            
+            opacity: 0;
+            transform: translateX(20px); /* Arrive de la droite */
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .chat-toast span { font-weight: bold; color: var(--gold); margin-right:5px; }
+
     </style>
 </head>
 <body>
@@ -871,7 +908,7 @@
             </div>
         </div>
 
-        <div id="ui-chat" class="chat-container closed" style="display:none;">
+        <div id="ui-chat" class="chat-container" style="display:none;">
     <div class="chat-header" onclick="toggleChat()">
         <span class="new-msg-dot"></span> <span class="chat-title">CHAT</span>
         <span class="arrow-icon">▼</span>
@@ -885,6 +922,7 @@
         </div>
     </div>
 </div>
+<div id="toast-container"></div>
             <div class="emoji-bar" title="Faites défiler pour voir plus">
         <button class="emoji-btn" onclick="sendEmote('gelo')">
             <img src="assets/emotes/gelo.png" alt="gelo">
@@ -1267,7 +1305,7 @@
                     playSfx('matou'); // Son dramatique
                 }
                 else if (msg.is_timer_mode) {
-                    triggerModePopup("CHRONO", "7 secondes pour jouer !", "⏳", "pop-beige");
+                    triggerModePopup("CHRONO", "10 secondes pour jouer !", "⏳", "pop-beige");
                     playSfx('bid'); // Ou un son de tic-tac si vous en avez un
                 }
                 // Priorité 2 : Révolution
@@ -1364,20 +1402,26 @@
             render();
         } 
 
-        else if(msg.type === 'CHAT_MSG') {
+        else // Dans handle(msg) -> CHAT_MSG
+        if (msg.type === 'CHAT_MSG') {
             const div = document.getElementById('chat-history');
             const line = document.createElement('div');
             line.className = 'chat-msg';
             line.innerHTML = `<span class="chat-author">${msg.author}:</span> ${msg.text.replace(/</g, "&lt;")}`;
             div.prepend(line); 
             
-            // --- AJOUT : GESTION NOTIFICATION ---
+            // --- GESTION NOTIFICATIONS ---
             const chat = document.getElementById('ui-chat');
-            // Si le chat est fermé, on ajoute la classe "has-new" pour afficher le point rouge
+            
+            // Si le chat est FERMÉ (classe 'closed')
             if (chat.classList.contains('closed')) {
+                // 1. On garde le point rouge
                 chat.classList.add('has-new');
-            } 
+                
+                // 2. ON DÉCLENCHE LE TOAST (Nouvelle ligne)
+                showChatToast(msg.author, msg.text);
             }
+        }
         else if(msg.type === 'ERROR') {
             alert(msg.msg);
         } 
@@ -1821,6 +1865,34 @@
                 chat.classList.remove('has-new');
             }
         }
+
+        function showChatToast(author, message) {
+        const container = document.getElementById('toast-container');
+        
+        // Création de l'élément visuel
+        const toast = document.createElement('div');
+        toast.className = 'chat-toast';
+        
+        // On coupe le message s'il est trop long pour le toast
+        let shortMsg = message.length > 20 ? message.substring(0, 20) + "..." : message;
+        
+        // Protection XSS simple
+        toast.innerHTML = `<span>${author}:</span> ${shortMsg.replace(/</g, "&lt;")}`;
+        
+        container.appendChild(toast);
+        
+        // 1. Animation d'entrée (petit délai pour que le DOM l'enregistre)
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+        
+        // 2. Suppression automatique après 3 secondes
+        setTimeout(() => {
+            toast.classList.remove('show');
+            // On attend la fin de l'anim CSS (0.3s) pour supprimer du DOM
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
 
         // --- GESTION DES RACCOURCIS CLAVIER (EMOTES) ---
         // --- GESTION DES RACCOURCIS CLAVIER ---

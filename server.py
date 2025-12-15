@@ -477,7 +477,7 @@ class GameServer:
             effect_name = "DOUBLE_PENALTY"
         elif self.is_timer_mode: # <--- NOUVEAU
             effect_name = "TIMER"
-            msg_log = "⏳ BLITZ ! 7 secondes pour jouer !"
+            msg_log = "⏳ BLITZ ! 10 secondes pour jouer !"
         
         if is_revolution:
             effect_name="REVOLUTION"
@@ -514,7 +514,7 @@ class GameServer:
     async def run_timer(self, player_idx):
         try:
             # Attendre 7 secondes (+ petite marge réseau)
-            await asyncio.sleep(7.5) 
+            await asyncio.sleep(10.5) 
             
             # Vérification : est-ce toujours le tour de ce joueur ?
             if self.current_player_idx == player_idx and self.game_started:
