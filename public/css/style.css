@@ -1,0 +1,819 @@
+:root { --bg: #1e1e24; --felt: #27ae60; --gold: #f1c40f; --panel: #2d3436; --red: #e74c3c; }
+body { 
+    margin: 0; 
+    font-family: 'Segoe UI', sans-serif; 
+    background: var(--bg); 
+    color: white; 
+    overflow: hidden; 
+    width: 100%;
+    height: 100vh; 
+    height: 100dvh; /* Pour mobile (safari/chrome barres d'adresse) */
+    display: flex; 
+    flex-direction: column; 
+}
+
+/* --- MODE TIMER (Beige & Sablier) --- */
+
+/* 1. Fond Beige Sable */
+body.timer-mode #game-view {
+    background: radial-gradient(circle, #e8dcb5 20%, #b0a17a 90%) !important;
+    box-shadow: inset 0 0 50px #5e4b35;
+    border: 4px solid #8c7b50;
+}
+
+/* 2. Sablier en fond */
+.timer-watermark {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20rem;
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+    display: none;
+    filter: sepia(1); /* Teinte sépia pour coller au beige */
+}
+
+/* Animation de rotation du sablier (retournement) */
+@keyframes hourGlassSpin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    45% { transform: translate(-50%, -50%) rotate(180deg); }
+    55% { transform: translate(-50%, -50%) rotate(180deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+body.timer-mode .timer-watermark {
+    display: block;
+    animation: hourGlassSpin 10s infinite ease-in-out; /* 10s comme le timer ! */
+}
+
+/* Couleur spécifique pour le texte dans ce mode (Marron foncé) */
+body.timer-mode .claim-text { color: #5e4b35 !important; }
+
+/* Style popup beige */
+.pop-beige #mode-title { color: #f1c40f !important; text-shadow: 0 0 20px #d35400 !important; }
+
+/* --- MODE BLIND (Lampe Torche) --- */
+:root {
+    --cursor-x: 50vw;
+    --cursor-y: 50vh;
+}
+
+/* 1. Applique le fond aux deux écrans : Login et Lobby */
+#screen-login, #screen-lobby {
+    background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.85)), url('../assets/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: white;
+}
+
+/* 2. Amélioration de la boîte centrale (Effet Verre) */
+.login-box {
+    background: rgba(45, 52, 54, 0.85) !important; 
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+}
+
+/* Le calque noir qui recouvre tout */
+#blind-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; /* Laisse passer les clics */
+    z-index: 900; /* Au dessus de tout sauf des modales */
+    
+    background: radial-gradient(circle 500px at var(--cursor-x) var(--cursor-y), 
+                transparent 0%, 
+                rgba(0,0,0,0.5) 30%, 
+                black 70%);
+    
+    display: none; /* Caché par défaut */
+    transition: opacity 1s;
+}
+
+/* Quand le mode est activé via JS */
+body.blind-mode #blind-overlay {
+    display: block;
+}
+
+/* RÈGLE D'OR : On cache VOS cartes, même sous la lampe torche */
+body.blind-mode .my-hand-area img {
+    filter: brightness(0) !important; /* Rend les cartes toutes noires */
+    pointer-events: none;
+}
+
+/* Petit message d'ambiance */
+.blind-warning {
+    position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
+    color: #c0392b; font-family: 'Courier New', monospace; font-weight: bold;
+    font-size: 2rem; z-index: 950; display: none; text-shadow: 0 0 10px red;
+    pointer-events: none;
+}
+body.blind-mode .blind-warning { display: block; animation: pulse-text 1s infinite; }
+
+@keyframes pulse-text { 50% { opacity: 0.5; } }
+
+@keyframes spinPage {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(10deg) scale(0.9); background: #8e44ad; } /* Violet mystique */
+    100% { transform: rotate(0deg) scale(1); }
+}
+
+.revolution-anim {
+    animation: spinPage 1s ease-in-out;
+}
+
+/* --- THÈME RÉVOLUTION (Violet & Symbole) --- */
+
+/* 1. Changement de couleur du Tapis */
+body.revolution-active #game-view {
+    background: radial-gradient(circle, #8e44ad 20%, #2c3e50 90%) !important;
+    box-shadow: inset 0 0 50px #000;
+    border: 4px solid #f1c40f; /* Bordure dorée pour marquer l'événement */
+}
+
+/* 2. Le Symbole Géant en fond */
+.revolution-watermark {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20rem; /* Très gros */
+    color: rgba(255, 255, 255, 0.15); /* À peine visible (filigrane) */
+    pointer-events: none;
+    z-index: 0; /* Tout au fond */
+    display: none;
+}
+
+/* Animation de rotation lente du symbole */
+@keyframes slowSpin {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+body.revolution-active .revolution-watermark {
+    display: block;
+    animation: slowSpin 20s linear infinite;
+}
+
+/* Petit détail : Les avatars changent aussi de couleur de bordure */
+body.revolution-active .avatar {
+    border-color: #9b59b6 !important;
+}
+
+body.revolution-active .main-container {
+        animation: spinPage 1s ease-in-out;
+}
+
+/* --- MODE MORT SUBITE (Double Peine) --- */
+
+/* 1. Fond Rouge Sang */
+body.double-penalty-mode #game-view {
+    background: radial-gradient(circle, #7b0d0d 20%, #2c0404 90%) !important;
+    box-shadow: inset 0 0 100px #000;
+    border: 4px solid #c0392b; /* Bordure rouge */
+}
+
+/* 2. Tête de mort en fond */
+.skull-watermark {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 25rem; /* Énorme */
+    opacity: 0.1; /* Très subtil */
+    pointer-events: none;
+    z-index: 0;
+    display: none;
+    filter: grayscale(100%);
+}
+
+/* Animation qui fait respirer la tête de mort */
+@keyframes skullPulse {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
+    50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.2; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0.1; }
+}
+
+body.double-penalty-mode .skull-watermark {
+    display: block;
+    animation: skullPulse 4s infinite ease-in-out;
+}
+
+/* Petit détail : changer la couleur du texte info en rouge */
+body.double-penalty-mode .claim-text {
+    color: #e74c3c !important;
+    text-shadow: 0 0 10px black;
+}
+
+/* --- MODE MATCH POINT (DANGER) --- */
+
+/* 1. L'Avatar en Danger (Battement de coeur) */
+@keyframes heartbeat {
+    0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+    50% { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 20px 10px rgba(231, 76, 60, 0); }
+    100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
+
+.player.danger-mode .avatar {
+    animation: heartbeat 0.8s infinite ease-in-out !important; /* Prioritaire sur les autres anims */
+    border-color: #e74c3c !important; /* Rouge vif */
+    background: #c0392b !important;
+    color: white;
+}
+
+/* 2. La Vignette Rouge (Si C'EST MOI qui suis en danger) */
+#danger-vignette {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 850;
+    
+    /* Vignette rouge sombre sur les bords */
+    box-shadow: inset 0 0 150px rgba(192, 57, 43, 0.9);
+    display: none;
+    mix-blend-mode: multiply; /* Assombrit l'ambiance */
+}
+
+/* Animation de la vignette (le stress monte et descend) */
+@keyframes vignettePulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+}
+
+body.in-danger #danger-vignette {
+    display: block;
+    animation: vignettePulse 2s infinite;
+}
+
+/* ECRANS */
+.screen { display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; }
+.screen.active { display: flex; }
+
+/* LOGIN */
+.login-box { background: var(--panel); padding: 30px; border-radius: 12px; text-align: center; width: 90%; max-width: 400px; }
+input, select { padding: 12px; border-radius: 6px; border: 1px solid #444; background: #222; color: white; margin: 8px 0; width: 100%; box-sizing: border-box; font-size: 1rem; }
+button { background: var(--gold); color: #222; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; width: 100%; font-size: 1rem; }
+button:disabled { opacity: 0.5; }
+
+/* TABLE (RESPONSIVE) */
+#game-view { 
+    position: relative; 
+    width: 100%; 
+    flex: 1; /* C'est la clé : il grandit pour remplir le vide */
+    background: radial-gradient(circle, var(--felt) 20%, #1e8449 90%); 
+    overflow: hidden; 
+}
+
+.center-area { 
+    position: absolute; 
+    top: 58%; /* Descendu de 45% à 58% pour dégager le joueur du haut */
+    left: 50%; 
+    transform: translate(-50%, -50%); 
+    text-align: center; 
+    width: 90%; 
+    pointer-events: none; 
+    z-index: 5; /* S'assure que c'est au dessus du tapis mais sous les anims */
+}
+.claim-text { font-size: clamp(1.2rem, 4vw, 2rem); color: var(--gold); font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); margin-bottom: 10px; }
+
+/* CARTES SUR TABLE (FOND BLANC) */
+.visual-claim-cards { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; }
+.visual-claim-cards img { 
+    width: clamp(40px, 10vw, 70px); 
+    height: auto; 
+    background: white; /* FOND BLANC FORCÉ */
+    border-radius: 4px; 
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5); 
+}
+.separator { font-size: 2rem; margin: 0 10px; color: white; }
+
+/* JOUEURS */
+.player { position: absolute; width: 80px; text-align: center; transition: all 0.5s ease; }
+.avatar { width: 50px; height: 50px; background: #333; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-weight:bold; border: 3px solid #555; position: relative; z-index: 2; }
+.player.active .avatar { border-color: var(--gold); box-shadow: 0 0 15px var(--gold); }
+.info-tag { background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; margin-top: 2px; display: inline-block; white-space: nowrap; }
+
+/* PANNEAU BAS (RESPONSIVE) */
+.bottom-panel { 
+    background: var(--panel); 
+    border-top: 4px solid #111; 
+    z-index: 10; 
+    width: 100%; 
+    display: flex; 
+    flex-direction: row; 
+    
+    /* Changement ici : Hauteur automatique mais limitée */
+    height: auto; 
+    max-height: 40vh; /* Ne jamais dépasser 40% de l'écran */
+    flex-shrink: 0; /* Empêche le panneau d'être écrasé */
+    padding-bottom: env(safe-area-inset-bottom); /* Pour iPhone X+ */
+}
+
+.my-hand-area { width: 35%; border-right: 2px solid #444; padding: 10px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
+.hand-cards { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 10px; }
+.hand-cards img { 
+    width: clamp(50px, 8vw, 80px); 
+    height: auto; 
+    border-radius: 4px; 
+    background: white; /* FOND BLANC */
+    cursor: pointer; 
+}
+.hidden-hand img { transform: rotateY(180deg); } /* Dos */
+
+/* Optimisation pour les petits écrans dans le panneau */
+.controls-area {
+    flex-grow: 1;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    width: 100%; /* S'assure de prendre toute la largeur */
+    box-sizing: border-box; /* Inclut le padding dans le calcul de largeur */
+}
+.input-group {
+    background: rgba(0,0,0,0.2);
+    padding: 8px;
+    border-radius: 6px;
+    
+    /* LA CLÉ DU SUCCÈS : */
+    flex: 1 1 0px; /* Force les deux blocs à avoir une largeur de base de 0 et à grandir équitablement */
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Empêche le contenu de déformer le flex */
+}
+.input-title {
+    font-size: 0.8rem; 
+    color: #aaa; 
+    font-weight: bold;
+}
+
+.split-label {
+    font-size: 0.8rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    color: white;
+    width: 100%; /* Zone cliquable large */
+}
+
+/* --- ALIGNEMENT DES TITRES --- */
+/* On donne une hauteur fixe aux entêtes pour qu'ils s'alignent parfaitement */
+.input-title, .split-header {
+    height: 25px;
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #aaa;
+    margin-bottom: 5px;
+}
+
+.split-header label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    color: white; /* Le rendre plus visible comme un titre actif */
+}
+
+.row-selects {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+}
+
+.row-selects select {
+    flex: 1; /* Chaque select prend sa part */
+    width: 100%; /* Force la largeur max */
+    min-width: 0;
+    padding: 8px; /* Confort tactile */
+}
+
+.action-buttons {
+    display: flex; 
+    gap: 10px; 
+    margin-top: auto; 
+    width: 100%;
+}
+.action-buttons button { flex: 1; }
+.btn-call { background: var(--red); color: white; }
+
+/* MEDIA QUERY MOBILE (Portrait) */
+@media (max-width: 768px) {
+    .bottom-panel { 
+        flex-direction: column; 
+        height: auto; 
+        max-height: 50vh; 
+    }
+    .center-area {
+        top: 55%; /* Un peu plus haut sur mobile car le clavier peut gêner */
+    }
+    /* Réduire un peu la taille des cartes centrales sur mobile */
+    .visual-claim-cards img { width: clamp(30px, 12vw, 60px); }
+    .claim-text { font-size: 1.2rem; margin-bottom: 5px; }
+}
+
+/* MODAL */
+.modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 100; flex-direction: column; }
+.reveal-grid { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; padding: 20px; }
+.reveal-grid img { width: 60px; background: white; border-radius: 4px; }
+
+/* --- ANIMATIONS --- */
+
+/* 1. Entrée des cartes (Distribution) */
+@keyframes slideInUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.hand-cards img {
+    /* On prépare l'anim, le délai sera géré en JS */
+    animation: slideInUp 0.5s cubic-bezier(0.25, 1.5, 0.5, 1) both; 
+}
+
+/* 2. Pulsation du Joueur Actif */
+@keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(241, 196, 15, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); }
+}
+
+.player.active .avatar {
+    animation: pulse-ring 2s infinite;
+}
+
+/* 3. Apparition fluide des claims centraux */
+@keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    80% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.visual-claim-cards img, .separator {
+    animation: popIn 0.4s ease-out both;
+}
+
+/* 4. Transition fluide du panneau Split */
+#split-inputs {
+    transition: all 0.3s ease-in-out;
+    overflow: hidden;
+    max-height: 0; /* Caché par défaut */
+    opacity: 0;
+    margin-top: 0;
+}
+
+#split-inputs.visible {
+    max-height: 100px; /* Assez grand pour le contenu */
+    opacity: 1;
+    margin-top: 5px;
+}
+
+/* 5. Feedback flottant (Texte d'action) */
+.feedback-bubble {
+    position: absolute;
+    color: white;
+    font-weight: bold;
+    font-size: 1.2rem;
+    background: rgba(0,0,0,0.8);
+    padding: 5px 10px;
+    border-radius: 8px;
+    pointer-events: none;
+    animation: floatUp 1.5s forwards;
+    z-index: 20;
+    white-space: nowrap;
+}
+
+@keyframes floatUp {
+    0% { transform: translate(-50%, 0) scale(0.8); opacity: 0; }
+    20% { transform: translate(-50%, -20px) scale(1.1); opacity: 1; }
+    100% { transform: translate(-50%, -60px) scale(1); opacity: 0; }
+}
+
+/* --- CARTES ADVERSAIRES (DOS) --- */
+.opponent-hand {
+    display: flex;
+    justify-content: center;
+    margin-top: 5px;
+    height: 45px; /* Hauteur fixe pour éviter que ça saute */
+}
+
+.mini-card {
+    width: 30px; /* Beaucoup plus petit que les cartes du milieu */
+    height: 45px;
+    background: white;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    margin-left: -15px; /* Effet d'éventail (superposition) */
+    transition: transform 0.2s;
+}
+
+/* La première carte ne doit pas être décalée */
+.mini-card:first-child {
+    margin-left: 0;
+}
+
+/* Petit effet au survol pour voir combien il y en a */
+.opponent-hand:hover .mini-card {
+    margin-left: -5px; /* On écarte un peu les cartes au survol */
+}
+
+/* --- CHAT SYSTEM (Rétractable) --- */
+.chat-container {
+    position: absolute;
+    top: 10px; right: 10px;
+    width: 220px;
+    z-index: 80;
+    display: flex; flex-direction: column;
+    transition: all 0.3s ease; /* Animation fluide */
+}
+
+/* L'en-tête avec la flèche */
+.chat-header {
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 6px 6px 0 0; /* Arrondi seulement en haut */
+    cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    border: 1px solid #555;
+}
+
+.chat-header:hover { background: rgba(50,50,50,0.9); }
+
+/* Le corps du chat (Messages + Input) */
+.chat-body-wrapper {
+    background: rgba(0,0,0,0.5);
+    border-radius: 0 0 6px 6px;
+    overflow: hidden; /* Important pour l'animation */
+    max-height: 200px; /* Hauteur max ouvert */
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    opacity: 1;
+    display: flex; flex-direction: column; gap: 5px; padding: 5px;
+}
+
+/* --- ÉTAT FERMÉ --- */
+.chat-container.closed .chat-body-wrapper {
+    max-height: 0; /* On réduit la hauteur à 0 */
+    padding: 0;    /* On enlève le padding */
+    opacity: 0;    /* On rend transparent */
+    border: none;
+}
+
+.chat-container.closed .chat-header {
+    border-radius: 6px; /* Arrondi complet quand fermé */
+    width: 40px; /* Devient tout petit (juste l'icône) */
+    margin-left: auto; /* Aligne le bouton à droite */
+}
+
+.arrow-icon { transition: transform 0.3s; font-size: 0.8rem; }
+.chat-container.closed .arrow-icon { transform: rotate(-90deg); } /* Flèche tourne */
+
+.chat-title { font-size: 0.8rem; font-weight:bold; }
+.chat-container.closed .chat-title { display: none; } /* Cache le titre quand fermé */
+
+/* Indicateur de nouveau message (Pastille rouge) */
+.new-msg-dot {
+    width: 10px; height: 10px; background: #e74c3c;
+    border-radius: 50%; display: none;
+    box-shadow: 0 0 5px red;
+}
+.chat-container.closed.has-new .new-msg-dot { display: block; }
+
+/* RESTE DU CSS CHAT (Interne) */
+.chat-messages {
+    max-height: 150px; overflow-y: auto;
+    display: flex; flex-direction: column-reverse;
+    pointer-events: none;
+}
+.chat-input-row { display: flex; gap: 5px; pointer-events: auto; }
+.chat-input-row input {
+    margin: 0; padding: 5px; font-size: 0.8rem;
+    background: rgba(0,0,0,0.8); border: 1px solid #555; color: white; flex: 1;
+}
+.chat-msg { margin-bottom: 3px; text-shadow: 1px 1px 0 #000; word-wrap: break-word; }
+.chat-author { color: var(--gold); font-weight: bold; margin-right: 5px; }
+
+/* --- 2. SHAKE EFFECT --- */
+@keyframes shake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    20% { transform: translate(-3px, 0px) rotate(1deg); }
+    30% { transform: translate(3px, 2px) rotate(0deg); }
+    40% { transform: translate(1px, -1px) rotate(1deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    60% { transform: translate(-3px, 1px) rotate(0deg); }
+    70% { transform: translate(3px, 1px) rotate(-1deg); }
+    80% { transform: translate(-1px, -1px) rotate(1deg); }
+    90% { transform: translate(1px, 2px) rotate(0deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+.shake-screen { animation: shake 0.5s; }
+
+/* --- 3. EMOJIS --- */
+/* --- BARRE D'EMOTES (SCROLLABLE) --- */
+.emoji-bar {
+    position: absolute; 
+    left: 10px;
+    top: 20vh; 
+    z-index: 60;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center;
+    gap: 10px;
+    max-height: 200px; 
+    width: 60px;
+    overflow-y: auto; 
+    overflow-x: hidden;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 10px 0;
+    border-radius: 30px;
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(2px);
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.emoji-bar::-webkit-scrollbar {
+    display: none;
+}
+
+/* LE BOUTON ROND */
+.emoji-btn {
+    width: 45px;  
+    height: 45px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1); /* Fond léger */
+    border: 2px solid transparent; /* Prépare la bordure */
+    flex-shrink: 0; /* Empêche l'écrasement des boutons */
+    
+    display: flex; justify-content: center; align-items: center;
+    overflow: hidden; padding: 0;
+    cursor: pointer;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.emoji-btn:hover { 
+    transform: scale(1.1); 
+    background: rgba(255,255,255,0.3);
+    border-color: var(--gold);
+}
+
+.emoji-btn img {
+    width: 100%; height: 100%; object-fit: cover; pointer-events: none;
+}
+    
+.floating-emoji {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    animation: floatEmoji 2s forwards;
+    z-index: 100;
+    pointer-events: none;
+}
+
+@keyframes floatEmoji {
+    0% { transform: translate(-50%, 0) scale(0); opacity: 0; }
+    20% { transform: translate(-50%, -20px) scale(1.2); opacity: 1; }
+    80% { transform: translate(-50%, -50px) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -80px) scale(0.5); opacity: 0; }
+}
+
+.header-row {
+    height: 25px; /* Hauteur fixe pour alignement parfait */
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+/* Conteneur pour mettre les mains côte à côte */
+.hands-row {
+    display: flex;
+    flex-direction: row;
+    gap: 10px; /* Espace entre les deux blocs */
+    width: 100%;
+}
+/* Sur mobile, on garde côte à côte mais on réduit la taille si besoin */
+.hands-row .input-group {
+    flex: 1; 
+    min-width: 0; /* Empêche le débordement flex */
+    display: flex;
+    flex-direction: column;
+    margin: 0; /* Important pour l'alignement */
+    height: 100%; /* Pour qu'ils aient la même hauteur visuelle */
+}
+
+/* --- POPUP ANNONCE MODE --- */
+#mode-announcement {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 2000; /* Au-dessus de tout, même du chat */
+    pointer-events: none; /* Laisse passer les clics au travers */
+    
+    background: rgba(0,0,0,0.6); /* Assombrit légèrement l'écran */
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(2px);
+}
+
+#mode-announcement.active {
+    opacity: 1;
+}
+
+#mode-icon { font-size: 5rem; margin-bottom: 10px; transform: scale(0); transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+#mode-title { font-size: 3rem; font-weight: 900; color: white; text-transform: uppercase; text-shadow: 0 5px 15px rgba(0,0,0,0.8); transform: translateY(50px); opacity: 0; transition: all 0.5s ease 0.1s; text-align: center;}
+#mode-sub { font-size: 1.2rem; color: #ddd; font-style: italic; transform: translateY(20px); opacity: 0; transition: all 0.5s ease 0.2s; text-align: center;}
+
+/* Animation d'entrée quand la classe active est là */
+#mode-announcement.active #mode-icon { transform: scale(1); }
+#mode-announcement.active #mode-title { transform: translateY(0); opacity: 1; }
+#mode-announcement.active #mode-sub { transform: translateY(0); opacity: 1; }
+
+/* Couleurs spécifiques dynamiques via JS */
+.pop-red #mode-title { color: #e74c3c !important; text-shadow: 0 0 20px #c0392b !important; }
+.pop-purple #mode-title { color: #9b59b6 !important; text-shadow: 0 0 20px #8e44ad !important; }
+
+#timer-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 10px; /* Épaisseur de la barre */
+    width: 0;     /* Caché par défaut */
+    z-index: 3000; /* Au-dessus de tout, même des popups */
+    pointer-events: none;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* L'animation qui se lance à chaque tour */
+.timer-anim {
+    /* 7.5s pour correspondre au serveur (7s + petite marge) */
+    animation: burnFuse 7.5s linear forwards; 
+}
+
+@keyframes burnFuse {
+    0% { 
+        width: 100%; 
+        background: #2ecc71; /* Vert */
+        box-shadow: 0 0 15px #2ecc71;
+    }
+    50% { 
+        background: #f1c40f; /* Jaune */
+        box-shadow: 0 0 15px #f1c40f;
+    }
+    85% {
+        background: #e74c3c; /* Rouge */
+        box-shadow: 0 0 20px #e74c3c;
+    }
+    100% { 
+        width: 0%; 
+        background: #c0392b; /* Rouge foncé */
+    }
+}
+
+/* --- TOAST NOTIFICATION (Message reçu quand fermé) --- */
+#toast-container {
+    position: absolute;
+    top: 15px; 
+    right: 60px; /* Juste à gauche du bouton chat fermé */
+    z-index: 2500;
+    display: flex; flex-direction: column; gap: 5px;
+    pointer-events: none; /* Laisse passer les clics */
+}
+
+.chat-toast {
+    background: rgba(20, 20, 20, 0.95);
+    border: 1px solid #444;
+    border-left: 4px solid var(--gold); /* Bordure dorée stylée */
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    
+    opacity: 0;
+    transform: translateX(20px); /* Arrive de la droite */
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.chat-toast span { font-weight: bold; color: var(--gold); margin-right:5px; }

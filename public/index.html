@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DOUGLAS</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div id="mode-announcement">
+        <div id="mode-icon">⚠️</div>
+        <div id="mode-title">TITRE DU MODE</div>
+        <div id="mode-sub">Description courte</div>
+    </div>
+    <div id="timer-bar"></div>
+    <div id="blind-overlay"></div>
+    <div id="danger-vignette"></div>
+    <div class="blind-warning">⚠️ PANNE DE COURANT ⚠️</div>
+
+    <!-- ECRAN LOGIN -->
+    <div id="screen-login" class="screen active">
+        <div class="login-box">
+            <h1>DOUGLAS</h1>
+            <input type="text" id="username" placeholder="Votre Pseudo" value="Joueur">
+            <button onclick="connect()">JOUER</button>
+        </div>
+    </div>
+
+    <!-- ECRAN LOBBY -->
+    <div id="screen-lobby" class="screen">
+        <div class="login-box">
+            <h2>SALON</h2>
+            <p id="lobby-msg">...</p>
+            <button id="btn-start" disabled onclick="send('START_GAME')">LANCER</button>
+        </div>
+    </div>
+
+    <!-- ECRAN JEU -->
+    <div id="screen-game" class="screen">
+        <button id="btn-music" onclick="toggleMusic()" 
+            style="position:absolute; top:10px; left:10px; z-index:100; background:rgba(0,0,0,0.5); width:40px; height:40px; padding:0; font-size:1.2rem; border-radius:50%;">
+        🔊
+        </button>
+        
+        <div id="game-view">
+            <div class="revolution-watermark">♻️</div>
+            <div class="skull-watermark">💀</div>
+            <div class="timer-watermark">⏳</div>
+            
+            <div id="players-container"></div>
+            
+            <div class="center-area">
+                <div id="claim-text" class="claim-text">...</div>
+                <div id="visual-claim" class="visual-claim-cards"></div>
+            </div>
+        </div>
+
+        <div id="ui-chat" class="chat-container" style="display:none;">
+            <div class="chat-header" onclick="toggleChat()">
+                <span class="new-msg-dot"></span> <span class="chat-title">CHAT</span>
+                <span class="arrow-icon">▼</span>
+            </div>
+            <div class="chat-body-wrapper">
+                <div id="chat-history" class="chat-messages"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="chat-input" placeholder="Message..." maxlength="50" onkeydown="if(event.key==='Enter') sendChat()">
+                    <button onclick="sendChat()" style="width:auto; padding:5px 10px;">➤</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="toast-container"></div>
+        
+        <div class="emoji-bar" title="Faites défiler pour voir plus">
+            <button class="emoji-btn" onclick="sendEmote('gelo')"><img src="assets/emotes/gelo.png" alt="gelo"></button>
+            <button class="emoji-btn" onclick="sendEmote('max')"><img src="assets/emotes/max.png" alt="max"></button>
+            <button class="emoji-btn" onclick="sendEmote('ciliem')"><img src="assets/emotes/ciliem.png" alt="ciliem"></button>
+            <button class="emoji-btn" onclick="sendEmote('matou')"><img src="assets/emotes/matou.png" alt="matou"></button>
+            <button class="emoji-btn" onclick="sendEmote('germinal')"><img src="assets/emotes/germinal.png" alt="germinal"></button>
+        </div>
+
+        <div class="bottom-panel">
+            <div class="my-hand-area">
+                <button style="padding:5px; margin:0; width:auto; font-size:0.8rem" onclick="toggleHand()">👁</button>
+                <div id="my-cards" class="hand-cards"></div>
+            </div>
+
+            <div id="controls" class="controls-area" style="opacity: 0.5; pointer-events: none;">
+                <div class="hands-row">
+                    <div class="input-group">
+                        <div class="header-row"><div class="input-title">MAIN 1</div></div>
+                        <div class="row-selects">
+                            <select id="c1-combo" onchange="updateInputs(1,true)"></select>
+                        </div>
+                        <div class="row-selects" style="margin-top:5px">
+                            <select id="c1-r1" style="display:none"></select>
+                            <select id="c1-r2" style="display:none"></select>
+                            <select id="c1-suit" style="display:none"></select>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <div class="header-row">
+                            <label class="split-label">
+                                <input type="checkbox" id="check-split" onchange="toggleSplit()"> SPLIT (Double)
+                            </label>
+                        </div>
+                        
+                        <div id="split-inputs" style="display:none; width:100%;">
+                            <div class="row-selects">
+                                <select id="c2-combo" onchange="updateInputs(2,true)"></select>
+                            </div>
+                            <div class="row-selects" style="margin-top:5px">
+                                <select id="c2-r1" style="display:none"></select>
+                                <select id="c2-r2" style="display:none"></select>
+                                <select id="c2-suit" style="display:none"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div> 
+                <div class="action-buttons">
+                    <button onclick="bid()">ENCHÉRIR</button>
+                    <button class="btn-call" onclick="send('CALL')">MENTEUR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE RESULTAT -->
+    <div id="modal-result" class="modal">
+        <h1 id="res-title" style="margin:10px">RESULTAT</h1>
+        <p id="res-desc" style="color:#ccc; margin:5px">Détails</p>
+        <p id="res-stats" style="color:var(--gold); font-style:italic; margin-bottom:10px; font-size:0.9rem"></p>
+        <div id="res-cards" class="reveal-grid"></div>
+        <button onclick="closeModal()" style="width:auto; padding:10px 30px">OK</button>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
